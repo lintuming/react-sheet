@@ -1,0 +1,12 @@
+{
+    "format": {
+        "auto": "自动",
+        "plainText": "纯文本",
+      "date": "日期",
+        "time": "时间",
+        "dateTime": "日期时间",
+      "percentage": "百分比",
+        "scientificNotation": "科学计数",
+        "duration": "持续时间"
+    }
+};
