@@ -3,6 +3,7 @@ import { Colors, DRAGGER_SIZE, RESIZER_SIZE } from 'consts';
 import { Cell, CellStyle, SheetData } from 'types';
 import SheetBasic from './SheetBasic';
 import SheetManager from './SheetManage';
+import { hasTag, MainButtonPressed, SerieBoxPressed } from './SheetTags';
 
 export interface BoxRenderContext {
   readonly canvasOffsetX: number;
@@ -173,16 +174,6 @@ class Renderer extends SheetBasic {
           height: this.state.rows[-1],
           boxStyle: this.styleConfig.resizeMarkup,
         });
-
-        /*
-         * This.drawBox({
-         *   X: offsetX,
-         *   Y: 0,
-         *   Width: RESIZER_SIZE,
-         *   Height: this.state.rows[-1],
-         *   ...BoxStyles.hitResizeBox,
-         * });
-         */
       }
       if (state.resizingRow != null) {
         this.renderBox({
@@ -193,8 +184,7 @@ class Renderer extends SheetBasic {
           boxStyle: this.styleConfig.resizeMarkup,
         });
       }
-
-      if (!state.release) {
+      if (hasTag(state.tag, MainButtonPressed)) {
         // Line
         this.attrs({
           strokeStyle: Colors.hitResizeBoxFill,
@@ -439,6 +429,7 @@ class Renderer extends SheetBasic {
         yEndIndex + 1,
         false
       );
+      const mainButtonPressed = hasTag(state.tag, MainButtonPressed);
       if (
         rangeStartOffset &&
         rangeEndOffset &&
@@ -449,17 +440,19 @@ class Renderer extends SheetBasic {
           canvasOffsetY: rangeStartOffset[1],
           width: rangeEndOffset[0] - rangeStartOffset[0],
           height: rangeEndOffset[1] - rangeStartOffset[1],
-          boxStyle: state.release
-            ? this.styleConfig.selectedRange
-            : this.styleConfig.selectedRangeMove,
+          boxStyle: mainButtonPressed
+            ? this.styleConfig.selectedRangeMove
+            : this.styleConfig.selectedRange,
         });
       }
       const draggerGridOffset = this.utils.distanceToCanvasOrigin(
         Math.max(colRangeStart, colRangeEnd) + 1,
         Math.max(rowRangeStart, rowRangeEnd) + 1
       );
-
-      if (state.release && draggerGridOffset) {
+      if (
+        (!mainButtonPressed || hasTag(state.tag, SerieBoxPressed)) &&
+        draggerGridOffset
+      ) {
         const size = DRAGGER_SIZE;
         this.renderBox({
           canvasOffsetX: draggerGridOffset[0] - size / 2,
@@ -570,7 +563,14 @@ class Renderer extends SheetBasic {
 
     if (text) {
       ctx.save();
-      ctx.rect(canvasOffsetX, canvasOffsetY, width, height);
+      const padding = boxStyle.padding ?? 0;
+      const widthWithPadding = width - padding * 2;
+      ctx.rect(
+        canvasOffsetX + padding,
+        canvasOffsetY + padding,
+        widthWithPadding,
+        height - padding
+      );
       ctx.clip(); // this prevent the text overflow
       const {
         italic,
@@ -599,11 +599,11 @@ class Renderer extends SheetBasic {
 
       outer: for (const text of texts) {
         const textWidth = ctx.measureText(text).width;
-        if (textWidth > width) {
+        if (textWidth > widthWithPadding) {
           let start = 0;
           for (let i = 0; i < text.length; i++) {
             const partialW = ctx.measureText(text.slice(start, i + 1)).width;
-            if (partialW >= width) {
+            if (partialW >= widthWithPadding) {
               resolvedTexts.push(text.slice(start, i));
               if (textOverflow === 'hidden') {
                 continue outer;
@@ -618,7 +618,12 @@ class Renderer extends SheetBasic {
       }
       resolvedTexts = resolvedTexts.filter(Boolean);
       const textHeight = (resolvedTexts.length - 1) * (fontSize + 2);
-      let textY = this.boxTextY(verticalAlign, textHeight);
+
+      let textY = this.boxTextY(
+        verticalAlign,
+        fontSize + 2,
+        resolvedTexts.length
+      );
       resolvedTexts.forEach(resolvedText => {
         ctx.fillText(resolvedText, textX, textY);
         textY += fontSize + 2;
@@ -627,22 +632,30 @@ class Renderer extends SheetBasic {
     }
   }
 
-  protected boxTextY(align: CellStyle['verticalAlign'], h: number) {
+  protected boxTextY(
+    align: CellStyle['verticalAlign'],
+    h: number,
+    line: number
+  ) {
     assertIsDefined(this.renderContext?.box);
-    const { canvasOffsetY, height } = this.renderContext.box;
-
+    const { canvasOffsetY, height, boxStyle } = this.renderContext.box;
+    const padding = boxStyle.padding ?? 0;
+    const totalHeight = h * line;
     /*
      * See https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/textBaseline
      */
 
     if (align === 'top') {
-      return canvasOffsetY;
+      return canvasOffsetY + padding;
     }
     if (align === 'middle') {
-      return canvasOffsetY + height / 2 - h / 2 + 1;
+      return Math.max(
+        canvasOffsetY + padding + h / 2,
+        canvasOffsetY + height / 2 - (totalHeight - h) / 2
+      );
     }
     if (align === 'bottom') {
-      return canvasOffsetY + height - h;
+      return Math.max(canvasOffsetY + height - (totalHeight - h));
     }
 
     return canvasOffsetY;
@@ -650,16 +663,16 @@ class Renderer extends SheetBasic {
 
   protected boxTextX(align: CellStyle['horizontalAlign']) {
     assertIsDefined(this.renderContext?.box);
-    const { canvasOffsetX, width } = this.renderContext.box;
-
+    const { canvasOffsetX, width, boxStyle } = this.renderContext.box;
+    const padding = boxStyle.padding ?? 0;
     if (align === 'left') {
-      return canvasOffsetX;
+      return canvasOffsetX + padding;
     }
     if (align === 'right') {
-      return canvasOffsetX + width;
+      return canvasOffsetX + width - padding;
     }
     if (align === 'center') {
-      return canvasOffsetX + width / 2;
+      return canvasOffsetX + (width - padding * 2) / 2;
     }
 
     return canvasOffsetX;

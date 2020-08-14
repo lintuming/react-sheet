@@ -107,7 +107,7 @@ class Sheet extends Renderer {
       startIndexs,
       selectedRangeRect,
       readOnly,
-      release,
+      tag,
       resizedSize,
       resizingCol,
       resizingRow,

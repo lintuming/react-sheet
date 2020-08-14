@@ -36,6 +36,7 @@ export type CellStyle = {
   borderRight?: string;
   border?: string;
   format: Formats;
+  padding?: number;
 } & TextStyle;
 
 export type CellStyleConfig = Partial<CellStyle>;
@@ -58,12 +59,12 @@ export interface SheetData {
   readOnly?: boolean;
 }
 export type SheetInternalState = SheetData & {
+  tag: number;
   startIndexs: [number, number];
-  selectedRangeRect: [number, number, number, number] | null; //  [x1,y1,x2,y2]
+  selectedRangeRect: [number, number, number, number]; //  [x1,y1,x2,y2]
   selectedRect: [number, number, number, number];
   resizingCol?: number | null;
   resizingRow?: number | null;
-  release?: boolean;
   resizedSize?: number | null;
 };
 

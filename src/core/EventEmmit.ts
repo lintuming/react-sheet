@@ -32,9 +32,10 @@ class EventEmmit<E, VALUE, CALLBACK extends (value: VALUE) => void> {
     }
     for (const eventName of eventNames) {
       const listeners = this.eventListeners.get(eventName);
-
-      const l = listeners?.filter(l => l !== listener);
-      this.eventListeners.set(eventName, l);
+      if (listeners) {
+        const l = listeners?.filter(l => l !== listener);
+        this.eventListeners.set(eventName, l);
+      }
     }
   }
 

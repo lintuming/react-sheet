@@ -68,7 +68,7 @@ const LayerUI: React.FC<LayerUIProps> = ({
         dipose();
       };
     },
-    [sheetManager.sheet]
+    [sheetManager.sheet, sheetManager, forceUpdate]
   );
 
   React.useEffect(
@@ -93,13 +93,14 @@ const LayerUI: React.FC<LayerUIProps> = ({
             }
           );
         };
-        ref.current.addEventListener('wheel', handleWheel, { passive: false });
+        const r = ref.current;
+        r.addEventListener('wheel', handleWheel, { passive: false });
         return () => {
-          ref.current?.removeEventListener('wheel', handleWheel);
+          r.removeEventListener('wheel', handleWheel);
         };
       }
     },
-    [scrollHeight, scrollWidth]
+    [scrollHeight, scrollWidth, sheetManager]
   );
 
   const moveState = React.useRef<PointerMoveState | null>(null);
@@ -148,6 +149,7 @@ const LayerUI: React.FC<LayerUIProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onDoubleClick={() => {}}
       style={{
         position: 'absolute',
         width,

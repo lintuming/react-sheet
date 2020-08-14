@@ -4,6 +4,12 @@ import Sheet from 'core/SheetBasic';
 import { SheetInternalState } from 'types';
 import { register, createAction } from './register';
 import { ActionName } from './types';
+import {
+  markTag,
+  clearTag,
+  SerieBoxPressed,
+  MainButtonPressed,
+} from 'core/SheetTags';
 
 export type ReactPointerEvent = React.MouseEvent<HTMLDivElement>;
 export type PointerMoveState = {
@@ -150,10 +156,13 @@ export const ActionPointerDown = register(
       },
       sheet
     ) {
-      sheet.setState({
-        release: false,
-      });
       const { cursorOn } = pointerDownState;
+      sheet.setState(state => ({
+        tag: markTag(
+          state.tag,
+          cursorOn.serieBox ? SerieBoxPressed : MainButtonPressed
+        ),
+      }));
       if (cursorOn.colResize || cursorOn.rowResize || cursorOn.serieBox) {
         return;
       }
@@ -171,18 +180,29 @@ function getNextStateByMouseDrag(
 ): Partial<SheetInternalState> {
   const utils = sheet.utils;
   const { canvasOffset, normalizeRect, pointerDownState } = moveState;
-  const { normalizeRect: downNormalizeRect, cursorOn } = pointerDownState!;
-  if (cursorOn.serieBox) {
-    return null;
+  const {
+    normalizeRect: downNormalizeRect,
+    cursorOn: cursorOnWhenDown,
+  } = pointerDownState!;
+  if (cursorOnWhenDown.serieBox) {
+    return state;
   }
   if (state.resizingCol != null) {
     return {
-      resizedSize: utils.getSizeAfterResize(canvasOffset[0])[0],
+      resizedSize: utils.getSizeAfterResize(
+        state.resizingCol,
+        0,
+        canvasOffset[0]
+      )[0],
     };
   }
   if (state.resizingRow != null) {
     return {
-      resizedSize: utils.getSizeAfterResize(canvasOffset[1])[1],
+      resizedSize: utils.getSizeAfterResize(
+        0,
+        state.resizingRow,
+        canvasOffset[1]
+      )[1],
     };
   }
   let rectXStart, rectYStart, rectXEnd, rectYEnd;
@@ -223,7 +243,7 @@ function getNextStateByMouseMove(
     if (state.resizingCol !== x) {
       return {
         resizingCol: x,
-        resizedSize: utils.getSizeAfterResize()[0],
+        resizedSize: utils.getSizeAfterResize(x, 0)[0],
       };
     }
   } else if (state.resizingCol != null) {
@@ -233,11 +253,12 @@ function getNextStateByMouseMove(
     };
   }
   if (cursorOn.rowResize) {
+    console.log('rowToResize', y, state.resizingRow);
     sheet.injection.setCursorType(CURSOR_TYPE.RESIZEY);
     if (state.resizingRow !== y) {
       return {
         resizingRow: y,
-        resizedSize: utils.getSizeAfterResize()[1],
+        resizedSize: utils.getSizeAfterResize(0, y)[1],
       };
     }
   } else if (state.resizingRow != null) {
@@ -254,35 +275,10 @@ export const ActionPointerMove = register(
           getNextStateByMouseDrag(sheet, state, moveState)
         );
       } else {
-        sheet.setState(state =>
-          getNextStateByMouseMove(sheet, state, moveState)
-        );
-        // sheet.injection.setCursorType(CURSOR_TYPE.DEFAULT);
-        // if (cursorOn.serieBox) {
-        //   sheet.injection.setCursorType(CURSOR_TYPE.CROSSHAIR);
-        // }
-        // if (cursorOn.colResize) {
-        //   sheet.injection.setCursorType(CURSOR_TYPE.RESIZEX);
-        //   if (state.resizingCol !== x) {
-        //     state.resizingCol = x;
-        //     const [width] = utils.sizeAfterResized();
-        //     state.resizedSize = width;
-        //   }
-        // } else if (state.resizingCol != null) {
-        //   state.resizingCol = null;
-        //   state.resizedSize = null;
-        // }
-        // if (cursorOn.rowResize) {
-        //   sheet.injection.setCursorType(CURSOR_TYPE.RESIZEY);
-        //   if (state.resizingRow !== y) {
-        //     state.resizingRow = y;
-        //     const [_, height] = utils.sizeAfterResized();
-        //     state.resizedSize = height;
-        //   }
-        // } else if (state.resizingRow != null) {
-        //   state.resizingRow = null;
-        //   state.resizedSize = null;
-        // }
+        sheet.setState(state => {
+          console.log('mouseMove', state.resizedSize);
+          return getNextStateByMouseMove(sheet, state, moveState);
+        });
       }
     },
   })
@@ -293,7 +289,9 @@ export const ActionPointerUp = register(
     name: ActionName.pointerUp,
     commitHistory: true,
     perform(_, __, sheet) {
-      sheet.setState({ release: true });
+      sheet.setState(state => ({
+        tag: clearTag(state.tag, SerieBoxPressed),
+      }));
       const {
         resizingCol,
         resizingRow,

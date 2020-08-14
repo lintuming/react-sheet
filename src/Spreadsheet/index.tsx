@@ -28,7 +28,7 @@ export const useSheetManger = () => {
     );
   }
   const _forceUpdate = React.useState({})[1];
-  const forceUpdate = () => _forceUpdate({});
+  const forceUpdate = React.useCallback(() => _forceUpdate({}), []);
 
   useIsomorphicLayoutEffect(() => {
     const off = manager.on(
@@ -116,6 +116,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
             height: domHeight,
           }}
         />
+        <div>tests</div>
       </div>
     </SpreadsheetContext.Provider>
   );

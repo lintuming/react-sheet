@@ -113,12 +113,15 @@ class SheetManager extends EventEmmit<
 
   inject(injection: Partial<Injection>) {
     for (const key in injection) {
-      if (this.injection[key] && this.injection[key] !== throwInjectError) {
+      const k: keyof Injection = key as any;
+      if (this.injection[k] && this.injection[k] !== throwInjectError) {
         throwError(
           `Can not inject ${key} twice, this is likely a bug in Spreadsheet`
         );
       }
-      this.injection[key] = injection[key];
+      if (injection[k]) {
+        this.injection[k] = injection[k] as any;
+      }
     }
   }
 }

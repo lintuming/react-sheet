@@ -103,6 +103,7 @@ const DEFAULT_CELL_STYLE: CellStyle = {
   toFixed: 0,
   fillStyle: Colors.gridBoxFill,
   format: Formats.plainText,
+  padding: 2,
   underline: false,
 };
 
