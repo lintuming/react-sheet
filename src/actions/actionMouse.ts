@@ -253,7 +253,6 @@ function getNextStateByMouseMove(
     };
   }
   if (cursorOn.rowResize) {
-    console.log('rowToResize', y, state.resizingRow);
     sheet.injection.setCursorType(CURSOR_TYPE.RESIZEY);
     if (state.resizingRow !== y) {
       return {
@@ -276,7 +275,6 @@ export const ActionPointerMove = register(
         );
       } else {
         sheet.setState(state => {
-          console.log('mouseMove', state.resizedSize);
           return getNextStateByMouseMove(sheet, state, moveState);
         });
       }

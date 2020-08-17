@@ -55,8 +55,10 @@ const ScrollBar = React.forwardRef(
         } as const);
     const thumb = (
       <div
-        className={`scrollBarOffsetMask ${
-          isVertical ? 'scrollBarOffsetMaskY' : 'scrollBarOffsetMaskX'
+        className={`react-sheet-scrollbar-extendsion ${
+          isVertical
+            ? 'react-sheet-scrollbar-extendsion-y'
+            : 'react-sheet-scrollbar-extendsion-x'
         }`}
         style={{
           ...(isVertical
@@ -74,8 +76,8 @@ const ScrollBar = React.forwardRef(
         <div
           {...rest}
           ref={ref}
-          className={`scrollBarBase ${
-            isVertical ? 'scrollbarY' : 'scrollbarX'
+          className={`react-sheet-scrollbar ${
+            isVertical ? 'react-sheet-scrollbar-y' : 'react-sheet-scrollbar-x'
           }`}
           data-direction={direction}
           style={warpperStyle}

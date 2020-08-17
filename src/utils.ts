@@ -1,4 +1,5 @@
 import { IS_SERVE } from 'consts';
+import { CellStyle } from 'types';
 
 const isNaN = (value: unknown): value is typeof NaN =>
   // eslint-disable-next-line
@@ -9,7 +10,41 @@ export function deleteAt<T>(arr: T[], index: number) {
   arr.length -= 1;
   return arr;
 }
-
+export function parseBorder(border: string) {
+  const [_lineWidth, lineStyle, strokeStyle] = border.split(/\s+/);
+  const lineWidth = parseFloat(_lineWidth);
+  return [lineWidth, lineStyle, strokeStyle] as const;
+}
+export function getBorderWidthFromStyle(style: {
+  borderTop?: string;
+  borderLeft?: string;
+  borderBottom?: string;
+  borderRight?: string;
+  border?: string;
+}) {
+  let borderTop = 0,
+    borderBottom = 0,
+    borderLeft = 0,
+    borderRight = 0;
+  if (style.border) {
+    const [lineWidth] = parseBorder(style.border);
+    borderTop = borderBottom = borderLeft = borderRight = lineWidth;
+  } else if (style.borderTop) {
+    borderTop = parseBorder(style.borderTop)[0];
+  } else if (style.borderBottom) {
+    borderBottom = parseBorder(style.borderBottom)[0];
+  } else if (style.borderLeft) {
+    borderLeft = parseBorder(style.borderLeft)[0];
+  } else if (style.borderRight) {
+    borderRight = parseBorder(style.borderRight)[0];
+  }
+  return {
+    borderBottom,
+    borderLeft,
+    borderRight,
+    borderTop,
+  };
+}
 export function merge<T, F>(config1: T, config2: F) {
   const merged = { ...config1 };
   for (const key of Object.keys(config2)) {

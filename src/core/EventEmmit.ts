@@ -61,7 +61,6 @@ class EventEmmit<E, VALUE, CALLBACK extends (value: VALUE) => void> {
     }
     if (this.eventListeners.has(eventName)) {
       const listeners = this.eventListeners.get(eventName)!;
-      console.log(value, 'emit', listeners);
       for (let i = 0; i < listeners.length; i++) {
         listeners[i](value);
       }

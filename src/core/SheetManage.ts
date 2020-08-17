@@ -119,9 +119,7 @@ class SheetManager extends EventEmmit<
           `Can not inject ${key} twice, this is likely a bug in Spreadsheet`
         );
       }
-      if (injection[k]) {
-        this.injection[k] = injection[k] as any;
-      }
+      this.injection[k] = injection[k] as any;
     }
   }
 }

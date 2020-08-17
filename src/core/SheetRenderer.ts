@@ -1,7 +1,13 @@
-import { assertIsDefined, dpr, merge } from 'utils';
+import {
+  assertIsDefined,
+  dpr,
+  merge,
+  getBorderWidthFromStyle,
+  parseBorder,
+} from 'utils';
 import { Colors, DRAGGER_SIZE, RESIZER_SIZE } from 'consts';
-import { Cell, CellStyle, SheetData } from 'types';
-import SheetBasic from './SheetBasic';
+import { Cell, CellStyle, SheetData, SheetInternalState } from 'types';
+import SheetBasic, { SheetOperations } from './SheetBasic';
 import SheetManager from './SheetManage';
 import { hasTag, MainButtonPressed, SerieBoxPressed } from './SheetTags';
 
@@ -73,16 +79,8 @@ class Renderer extends SheetBasic {
     }
   }
 
-  render() {
-    this.pushContext();
+  renderAll() {
     this.clearAll();
-    const { ctx } = this.renderContext!;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.scale(dpr(), dpr());
-    ctx.translate(0.5, 0.5);
-    // Patin canvas background
     this.paintBackground();
     this.renderGrid();
     this.renderCells();
@@ -91,6 +89,17 @@ class Renderer extends SheetBasic {
     this.renderHead();
     this.renderIndex();
     this.renderResizer();
+  }
+  render() {
+    this.pushContext();
+    const { ctx } = this.renderContext!;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.scale(dpr(), dpr());
+    ctx.translate(0.5, 0.5);
+    // Patin canvas background
+    this.renderAll();
     ctx.restore();
     this.popContext();
   }
@@ -146,14 +155,13 @@ class Renderer extends SheetBasic {
   protected renderResizer() {
     assertIsDefined(this.renderContext);
     const { ctx } = this.renderContext;
-
-    ctx.save();
     const { state } = this;
-
     if (
       state.resizedSize != null &&
       (state.resizingRow != null || state.resizingCol != null)
     ) {
+      ctx.save();
+
       // Const { x, y } = this.sheetManager.utils.getResizeCanvasOffset(this.sheetManager, sheet);
       const canvasOffset = this.utils.distanceToCanvasOrigin(
         state.resizingCol ?? state.startIndexs[0],
@@ -196,7 +204,6 @@ class Renderer extends SheetBasic {
             [offsetX + RESIZER_SIZE / 2, 0],
             [offsetX + RESIZER_SIZE / 2, viewHeight]
           );
-          ctx.stroke();
         }
         if (state.resizingRow != null) {
           ctx.beginPath();
@@ -205,11 +212,10 @@ class Renderer extends SheetBasic {
             [0, offsetY + RESIZER_SIZE / 2],
             [viewWidth, offsetY + RESIZER_SIZE / 2]
           );
-          ctx.stroke();
         }
       }
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   protected renderIndex() {
@@ -338,16 +344,6 @@ class Renderer extends SheetBasic {
         [viewWidth, row.offset + row.size]
       );
     }
-    // this.utils.forEachRow(
-    //   {
-    //     start: rowStartIdx,
-    //     end: rowsLength,
-    //     offsetBound: height,
-    //   },
-    //   ({ size, offset }) => {
-    //     this.drawLine([0, offset + size], [viewWidth, offset + size]);
-    //   }
-    // );
     for (let { offset, size } of this.utils.createColIterator(
       colStartIdx,
       colsLength,
@@ -355,17 +351,6 @@ class Renderer extends SheetBasic {
     )) {
       this.drawLine([offset + size, 0], [offset + size, viewHeight]);
     }
-    // this.utils.forEachCol(
-    //   {
-    //     start: colStartIdx,
-    //     end: colsLength,
-    //     offsetBound: width,
-    //   },
-    //   ({ size, offset }) => {
-    //     this.drawLine([offset + size, 0], [offset + size, viewHeight]);
-    //   }
-    // );
-    ctx.stroke();
     ctx.restore();
   }
 
@@ -453,14 +438,14 @@ class Renderer extends SheetBasic {
         (!mainButtonPressed || hasTag(state.tag, SerieBoxPressed)) &&
         draggerGridOffset
       ) {
-        const size = DRAGGER_SIZE;
-        this.renderBox({
-          canvasOffsetX: draggerGridOffset[0] - size / 2,
-          canvasOffsetY: draggerGridOffset[1] - size / 2,
-          width: size,
-          height: size,
-          boxStyle: this.styleConfig.selectedDragger,
-        });
+        // const size = DRAGGER_SIZE;
+        // this.renderBox({
+        //   canvasOffsetX: draggerGridOffset[0] - size / 2,
+        //   canvasOffsetY: draggerGridOffset[1] - size / 2,
+        //   width: size,
+        //   height: size,
+        //   boxStyle: this.styleConfig.selectedDragger,
+        // });
       }
     }
   }
@@ -477,39 +462,19 @@ class Renderer extends SheetBasic {
   }
   protected getBoxRenderContextFromMerge(mergeIndex: number): BoxRenderContext {
     const [x1, y1, x2, y2] = this.state.merges[mergeIndex];
-    const topLeftCellBoxRenderContext = this.getBoxRenderContextFromCell(
-      x1,
-      y1,
-      this.utils.getCell(x1, y1)
-    );
-    const endCanvasOffset = this.utils.distanceToCanvasOrigin(
-      x2 + 1,
-      y2 + 1,
-      false
-    )!;
+    const cell = this.utils.getCell(x1, y1);
 
-    const width =
-      endCanvasOffset[0] - topLeftCellBoxRenderContext.canvasOffsetX;
-    const height =
-      endCanvasOffset[1] - topLeftCellBoxRenderContext.canvasOffsetY;
     return {
-      ...topLeftCellBoxRenderContext,
-      width,
-      height,
+      boxStyle: merge(this.styleConfig.cell, cell.style),
+      text: cell.text ?? '',
+      ...this.utils.getBoundingClientRect(x1, y1, x2, y2),
     };
   }
-
-  protected readBorder(border: string) {
-    const [_lineWidth, lineStyle, strokeStyle] = border.split(/\s+/);
-    const lineWidth = parseFloat(_lineWidth);
-    return [lineWidth, lineStyle, strokeStyle] as const;
-  }
   protected applyBorderStyle(border: string) {
-    const [lineWidth, lineStyle, strokeStyle] = this.readBorder(border);
-
+    const [lineWidth, lineStyle, strokeStyle] = parseBorder(border);
     this.setLineStyle(lineStyle);
     this.attrs({
-      lineWidth,
+      lineWidth: lineWidth,
       strokeStyle,
     });
   }
@@ -534,13 +499,18 @@ class Renderer extends SheetBasic {
     assertIsDefined(this.renderContext);
 
     const { ctx } = this.renderContext;
-
-    ctx.moveTo(...points[0]);
+    let [x, y] = points[0];
+    ctx.moveTo(this.npxLine(x), this.npxLine(y));
     for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(...points[i]);
+      [x, y] = points[i];
+      ctx.lineTo(this.npxLine(x), this.npxLine(y));
     }
+    ctx.stroke();
   }
 
+  protected npxLine(n: number) {
+    return n;
+  }
   protected applyCellStyle() {
     assertIsDefined(this.renderContext);
     this.formatBoxText();
@@ -690,32 +660,16 @@ class Renderer extends SheetBasic {
     } = this.renderContext.box;
 
     ctx.save();
-    let borderTop = 0,
-      borderBottom = 0,
-      borderLeft = 0,
-      borderRight = 0;
-    if (boxStyle.border) {
-      const [lineWidth] = this.readBorder(boxStyle.border);
-      borderTop = borderBottom = borderLeft = borderRight = lineWidth;
-    } else if (boxStyle.borderTop) {
-      borderTop = this.readBorder(boxStyle.borderTop)[0];
-    } else if (boxStyle.borderBottom) {
-      borderBottom = this.readBorder(boxStyle.borderBottom)[0];
-    } else if (boxStyle.borderLeft) {
-      borderLeft = this.readBorder(boxStyle.borderLeft)[0];
-    } else if (boxStyle.borderRight) {
-      borderRight = this.readBorder(boxStyle.borderRight)[0];
-    }
-
+    // const {
+    //   borderTop,
+    //   borderBottom,
+    //   borderLeft,
+    //   borderRight,
+    // } = getBorderWidthFromStyle(boxStyle);
     this.attrs({
       fillStyle: boxStyle.fillStyle,
     });
-    ctx.fillRect(
-      canvasOffsetX + borderLeft / 2,
-      canvasOffsetY + borderTop / 2,
-      width - borderLeft / 2 - borderRight / 2,
-      height - borderTop / 2 - borderBottom / 2
-    );
+    ctx.fillRect(canvasOffsetX, canvasOffsetY, width, height);
     ctx.restore();
   }
 
@@ -729,21 +683,10 @@ class Renderer extends SheetBasic {
       width,
       height,
     } = this.renderContext.box;
-    const {
-      border,
-      borderTop,
-      borderRight,
-      borderBottom,
-      borderLeft,
-    } = boxStyle;
+    let { border, borderTop, borderRight, borderBottom, borderLeft } = boxStyle;
 
     if (border) {
-      ctx.beginPath();
-      ctx.save();
-      this.applyBorderStyle(border);
-      ctx.rect(canvasOffsetX, canvasOffsetY, width, height);
-      ctx.stroke();
-      ctx.restore();
+      borderTop = borderBottom = borderLeft = borderRight = border;
     }
 
     ctx.save();
@@ -751,30 +694,46 @@ class Renderer extends SheetBasic {
     if (borderTop) {
       ctx.beginPath();
       this.applyBorderStyle(borderTop);
-      ctx.moveTo(canvasOffsetX, canvasOffsetY);
-      ctx.lineTo(canvasOffsetX + width, canvasOffsetY);
-      ctx.stroke();
+      this.drawLine(
+        [canvasOffsetX, canvasOffsetY],
+        [canvasOffsetX + width, canvasOffsetY]
+      );
+      // ctx.moveTo(canvasOffsetX, canvasOffsetY);
+      // ctx.lineTo(canvasOffsetX + width, canvasOffsetY);
+      // ctx.stroke();
     }
     if (borderRight) {
       ctx.beginPath();
       this.applyBorderStyle(borderRight);
-      ctx.moveTo(canvasOffsetX + width, canvasOffsetY);
-      ctx.lineTo(canvasOffsetX + width, canvasOffsetY + height);
-      ctx.stroke();
+      this.drawLine(
+        [canvasOffsetX + width, canvasOffsetY],
+        [canvasOffsetX + width, canvasOffsetY + height]
+      );
+      // ctx.moveTo(canvasOffsetX + width, canvasOffsetY);
+      // ctx.lineTo(canvasOffsetX + width, canvasOffsetY + height);
+      // ctx.stroke();
     }
     if (borderBottom) {
       ctx.beginPath();
       this.applyBorderStyle(borderBottom);
-      ctx.moveTo(canvasOffsetX + width, canvasOffsetY + height);
-      ctx.lineTo(canvasOffsetX, canvasOffsetY + height);
-      ctx.stroke();
+      this.drawLine(
+        [canvasOffsetX + width, canvasOffsetY + height],
+        [canvasOffsetX, canvasOffsetY + height]
+      );
+      // ctx.moveTo(canvasOffsetX + width, canvasOffsetY + height);
+      // ctx.lineTo(canvasOffsetX, canvasOffsetY + height);
+      // ctx.stroke();
     }
     if (borderLeft) {
       ctx.beginPath();
       this.applyBorderStyle(borderLeft);
-      ctx.moveTo(canvasOffsetX, canvasOffsetY + height);
-      ctx.lineTo(canvasOffsetX, canvasOffsetY);
-      ctx.stroke();
+      this.drawLine(
+        [canvasOffsetX, canvasOffsetY + height],
+        [canvasOffsetX, canvasOffsetY]
+      );
+      // ctx.moveTo(canvasOffsetX, canvasOffsetY + height);
+      // ctx.lineTo(canvasOffsetX, canvasOffsetY);
+      // ctx.stroke();
     }
     ctx.restore();
   }
@@ -798,23 +757,11 @@ class Renderer extends SheetBasic {
     y: number,
     cell: Cell
   ): BoxRenderContext {
-    const [canvasOffsetX, canvasOffsetY] = this.utils.distanceToCanvasOrigin(
-      x,
-      y,
-      false
-    );
-    const width = this.utils.getColSize(x);
-    const height = this.utils.getRowSize(y);
-
     assertIsDefined(cell);
     const cellStyle = merge(this.styleConfig.cell, cell.style ?? {});
     const cellText = cell.text ?? '';
-
     return {
-      canvasOffsetX,
-      canvasOffsetY,
-      width,
-      height,
+      ...this.utils.getBoundingClientRect(x, y, x, y),
       boxStyle: cellStyle,
       text: cellText,
     };

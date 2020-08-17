@@ -1,0 +1,9 @@
+.react-sheet-cell-text-editor {
+  position: absolute;
+  -webkit-user-modify: read-write;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+}

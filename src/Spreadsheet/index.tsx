@@ -99,7 +99,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
   return (
     <SpreadsheetContext.Provider value={sheetManager}>
       <div
-        className={'spreadsheetContainer'}
+        className={'react-sheet-container'}
         style={{
           width: width + 23,
           height: height + 23,

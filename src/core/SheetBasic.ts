@@ -23,7 +23,7 @@ type Operation<T extends SheetEventNames, P, M = any> = {
   payload: P;
   meta?: M;
 };
-type SheetOperations =
+export type SheetOperations =
   | Operation<'UpdateState', Partial<SheetInternalState>>
   | Operation<
       'UpdateColSize',
@@ -178,7 +178,6 @@ export class SheetStateWatcher extends EventEmmit<
         break;
       }
     }
-    console.log('dispatch', action.type, action.payload);
     this.emit(action.type, action);
   }
 
@@ -698,21 +697,38 @@ export class SheetUtils {
   /**
    * Maths
    */
+
+  getBoundingClientRect(x1: number, y1: number, x2: number, y2: number) {
+    let width = this.getColSize(x1);
+    let height = this.getRowSize(y1);
+    const [canvasOffsetX, canvasOffsetY] = this.distanceToCanvasOrigin(
+      x1,
+      y1,
+      false
+    );
+    if (x1 === x2 && y1 === y2) {
+      return {
+        width,
+        height,
+        canvasOffsetX,
+        canvasOffsetY,
+      };
+    }
+    const endCanvasOffset = this.distanceToCanvasOrigin(x2 + 1, y2 + 1, false)!;
+    width = endCanvasOffset[0] - canvasOffsetX;
+    height = endCanvasOffset[1] - canvasOffsetY;
+    return {
+      canvasOffsetX,
+      canvasOffsetY,
+      width,
+      height,
+    };
+  }
   gridViewportSize() {
     const { width, height } = this.injection.getConfig();
-    const [colStartIdx, rowStartIdx] = this.state.startIndexs;
-    const { rowsLength, colsLength } = this;
-    let viewWidth = 0;
-    for (let col of this.createColIterator(colStartIdx, colsLength, width)) {
-      viewWidth += col.size;
-    }
-    let viewHeight = 0;
-    for (let row of this.createRowIterator(rowStartIdx, rowsLength, height)) {
-      viewHeight += row.size;
-    }
     return {
-      viewHeight: Math.min(viewHeight, height),
-      viewWidth: Math.min(viewWidth, width),
+      viewHeight: Math.min(height),
+      viewWidth: Math.min(width),
     };
   }
 
@@ -851,7 +867,6 @@ export class SheetUtils {
     );
 
     if (mouseOffset == null) {
-      console.log(originHeight, 'no offset', this.state, state.resizingRow);
       return [originWidth, originHeight];
     }
     const { domWidth, domHeight } = this.injection.getCanvasSize();
@@ -863,7 +878,6 @@ export class SheetUtils {
       Math.max(mouseOffset - canvasOffsetY, RESIZER_SIZE + 2),
       domHeight - RESIZER_SIZE - canvasOffsetY
     );
-    console.log('getSizedAfter', width, height);
     return [width, height];
   }
 

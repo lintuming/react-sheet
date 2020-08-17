@@ -2,8 +2,9 @@ const path = require('path');
 const webpack = require('webpack');
 module.exports = {
   stories: ['../stories/**/*.stories.(ts|tsx)'],
+  
   addons: [
-    '@storybook/addon-actions',
+    // '@storybook/addon-actions',
     '@storybook/addon-links',
     '@storybook/addon-docs',
   ],

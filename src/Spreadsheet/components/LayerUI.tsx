@@ -13,6 +13,7 @@ import {
   initializeMoveState,
   PointerDownState,
 } from 'actions/actionMouse';
+import CellTextEditor from './CellTextEditor';
 
 type LayerUIProps = {
   width: number;
@@ -130,6 +131,7 @@ const LayerUI: React.FC<LayerUIProps> = ({
     if (e.target === ref.current) {
       isFocus.current = true;
       e.persist();
+      setShowEditor(false);
       const pointerDownState = initPointerdownState(
         sheetManager,
         moveState.current,
@@ -141,6 +143,7 @@ const LayerUI: React.FC<LayerUIProps> = ({
       });
     }
   };
+  const [showEditor, setShowEditor] = React.useState(false);
 
   return (
     <div
@@ -149,7 +152,9 @@ const LayerUI: React.FC<LayerUIProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onDoubleClick={() => {}}
+      onDoubleClick={() => {
+        setShowEditor(true);
+      }}
       style={{
         position: 'absolute',
         width,
@@ -157,6 +162,7 @@ const LayerUI: React.FC<LayerUIProps> = ({
         ...props.style,
       }}
     >
+      <CellTextEditor hidden={!showEditor}></CellTextEditor>
       <Scrollor x={scrollWidth} y={scrollHeight} />
     </div>
   );

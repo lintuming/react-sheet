@@ -30,7 +30,7 @@ export enum Formats {
   dateTime,
   duration,
 }
-const DRAGGER_SIZE = 6;
+const DRAGGER_SIZE = 5;
 const RESIZER_SIZE = 3;
 enum CURSOR_TYPE {
   DEFAULT = 'unset',
@@ -76,7 +76,7 @@ enum Colors {
   gridLineStroke = '#e2e2e3',
   gridBoxFill = '#fff',
 
-  canvasBoxFill = '#f3f3f3',
+  canvasBoxFill = 'white',
 
   selectedLineStroke = '#1a73e8',
   selectedDraggerBoxFill = '#1473e8',
@@ -97,7 +97,7 @@ const baseTextStyle = {
 const DEFAULT_CELL_STYLE: CellStyle = {
   ...baseTextStyle,
   bold: false,
-  border: border(1, 'solid', 'transparent'),
+  border: border(1, 'solid', Colors.gridLineStroke),
   italic: false,
   lineThrough: false,
   toFixed: 0,
@@ -188,6 +188,16 @@ const EmptyCell = deepFreeze({
 
 const DEFAULT_SHEET_DATA: SheetData = {
   matrix: {
+    4: {
+      4: {
+        text: '1234567asfasf89101121314151617',
+        style: {
+          border: '1px solid green ',
+          textOverflow: 'wrap',
+          fillStyle: 'pink',
+        },
+      },
+    },
     1: {
       1: {
         text: '123456789101121314151617',
@@ -205,11 +215,11 @@ const DEFAULT_SHEET_DATA: SheetData = {
   ],
   rows: {
     length: 100,
-    defaultSize: 20,
+    defaultSize: 25,
     [-1]: 20,
   },
   cols: {
-    defaultSize: 80,
+    defaultSize: 100,
     length: 150,
     [-1]: 60,
   },

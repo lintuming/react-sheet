@@ -1,35 +1,35 @@
-.scrollBarOffsetMask {
+.react-sheet-scrollbar-extendsion {
   position: absolute;
   background: #f8f8f8;
   border: 1px solid #d9d9d9;
   box-sizing: border-box;
 }
 
-.scrollBarOffsetMaskY {
+.react-sheet-scrollbar-extendsion-y {
   right: 0;
   top: 0;
   border-bottom: none;
 }
-.scrollBarOffsetMaskX {
+.react-sheet-scrollbar-extendsion-x {
   bottom: 0;
   left: 0;
   border-right: none;
 }
-.scrollBarBase {
+.react-sheet-scrollbar {
   position: absolute;
   border-width: 0;
   margin: 0;
   padding: 0;
 }
-.scrollBarBase::-webkit-scrollbar {
+.react-sheet-scrollbar::-webkit-scrollbar {
   width: 13px;
   height: 13px;
 }
-.scrollBarBase::-webkit-scrollbar-track {
+.react-sheet-scrollbar::-webkit-scrollbar-track {
   background: #ffffff;
   border: 1px solid #d9d9d9;
 }
-.scrollBarBase::-webkit-scrollbar-thumb {
+.react-sheet-scrollbar::-webkit-scrollbar-thumb {
   background-clip: content-box;
   background-color: #dadce0;
   border: solid transparent;
@@ -40,21 +40,21 @@
   border-radius: 10px;
   padding: 100px 0 0;
 }
-.scrollBarBase::-webkit-scrollbar-thumb:hover {
+.react-sheet-scrollbar::-webkit-scrollbar-thumb:hover {
   border-width: 1px;
   background-color: #c0c0c0;
 }
-.scrollBarBase::-webkit-scrollbar-track-piece {
+.react-sheet-scrollbar::-webkit-scrollbar-track-piece {
   display: none;
 }
-.scrollBarBase::-webkit-resizer {
+.react-sheet-scrollbar::-webkit-resizer {
   display: none;
 }
-.scrollbarX {
+.react-sheet-scrollbar-x {
   overflow-x: scroll;
   overflow-y: hidden;
 }
-.scrollbarY {
+.react-sheet-scrollbar-y {
   overflow-x: hidden;
   overflow-y: scroll;
 }

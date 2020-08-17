@@ -49,7 +49,6 @@ const proxyAndNotify = <T extends Object, F>(
     set(target, prop, value, receiver) {
       assert(typeof prop !== 'symbol');
       const changed = didChange(target[prop], value);
-      console.log('set', prop, value, target, changed);
       if (typeof value === 'object' && value !== null) {
         value = proxyAndNotify(
           value,
