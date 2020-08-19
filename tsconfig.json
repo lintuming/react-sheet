@@ -3,7 +3,7 @@
   "compilerOptions": {
     "module": "esnext",
     "target": "ES5",
-    "lib": ["dom", "esnext"],
+    "lib": ["dom", "esnext","es2015.collection"],
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
@@ -15,6 +15,7 @@
     "baseUrl": "./src",
     "jsx": "react",
     "outDir": "./ts",
+    "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "downlevelIteration": true

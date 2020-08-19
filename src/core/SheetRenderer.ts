@@ -5,11 +5,12 @@ import {
   getBorderWidthFromStyle,
   parseBorder,
 } from 'utils';
-import { Colors, DRAGGER_SIZE, RESIZER_SIZE } from 'consts';
+import { Colors, DRAGGER_SIZE, RESIZER_SIZE, Borders } from 'consts';
 import { Cell, CellStyle, SheetData, SheetInternalState } from 'types';
 import SheetBasic, { SheetOperations } from './SheetBasic';
 import SheetManager from './SheetManage';
 import { hasTag, MainButtonPressed, SerieBoxPressed } from './SheetTags';
+import CellTextEditor from 'Spreadsheet/components/CellTextEditor';
 
 export interface BoxRenderContext {
   readonly canvasOffsetX: number;
@@ -46,12 +47,12 @@ class Renderer extends SheetBasic {
 
   protected pushContext() {
     const canvas = this.injection.getCanvas();
-    const { width, height } = this.injection.getConfig();
+    const { domWidth, domHeight } = this.injection.getCanvasSize();
 
     if (canvas) {
       const context = {
-        width,
-        height,
+        width: domWidth,
+        height: domHeight,
         ctx: canvas.getContext('2d')!,
         canvas,
         box: null,
@@ -80,7 +81,7 @@ class Renderer extends SheetBasic {
   }
 
   renderAll() {
-    this.clearAll();
+    // this.clearAll();
     this.paintBackground();
     this.renderGrid();
     this.renderCells();
@@ -97,9 +98,9 @@ class Renderer extends SheetBasic {
     ctx.save();
     ctx.beginPath();
     ctx.scale(dpr(), dpr());
-    ctx.translate(0.5, 0.5);
-    // Patin canvas background
+    // ctx.translate(0.5, 0.5);
     this.renderAll();
+
     ctx.restore();
     this.popContext();
   }
@@ -132,24 +133,6 @@ class Renderer extends SheetBasic {
       }
       this.renderBox(this.getBoxRenderContextFromCell(x, y, cell));
     }
-    // this.utils.forEachCells(
-    //   {
-    //     xStart,
-    //     yStart,
-    //     xEnd: this.colsLength,
-    //     yEnd: this.rowsLength,
-    //     xOffsetBound: viewWidth,
-    //     yOffsetBound: viewHeight,
-    //     skipDetaulCell:true
-    //   },
-    //   ({ cell, x, y }) => {
-    //     if (this.utils.cellIndexesInMerges(x, y)) {
-    //       return;
-    //     }
-    //     const boxContext = this.getBoxRenderContextFromCell(x, y, cell);
-    //     this.renderBox(boxContext);
-    //   }
-    // );
   }
 
   protected renderResizer() {
@@ -257,25 +240,7 @@ class Renderer extends SheetBasic {
         };
         this.renderBox(ctx);
       }
-      // this.utils.forEachRow(
-      //   {
-      //     start: rowStartIdx,
-      //     end: rowsLength,
-      //     offsetBound: height,
-      //   },
-      //   ({ offset, size }, i) => {
-      //     const cell = this.utils.getCell(-1, i);
-      //     const ctx: BoxRenderContext = {
-      //       canvasOffsetX: 0,
-      //       canvasOffsetY: offset + this.utils.getRowSize(-1),
-      //       width: this.utils.getColSize(-1),
-      //       height: size,
-      //       boxStyle: merge(this.styleConfig.cell, cell.style ?? {}),
-      //       text: cell.text,
-      //     };
-      //     this.renderBox(ctx);
-      //   }
-      // );
+
       for (let col of this.utils.createColIterator(
         colStartIdx,
         colsLength,
@@ -334,6 +299,8 @@ class Renderer extends SheetBasic {
     });
     ctx.fillRect(0, 0, viewWidth, viewHeight);
 
+    const lastPageStartCol = this.utils.lastStartIndex('col');
+    const lastPageStartRow = this.utils.lastStartIndex('row');
     for (let row of this.utils.createRowIterator(
       rowStartIdx,
       rowsLength,
@@ -341,7 +308,12 @@ class Renderer extends SheetBasic {
     )) {
       this.drawLine(
         [0, row.offset + row.size],
-        [viewWidth, row.offset + row.size]
+        [
+          colStartIdx >= lastPageStartCol
+            ? this.utils.distanceOfCols(colStartIdx, this.colsLength)
+            : viewWidth,
+          row.offset + row.size,
+        ]
       );
     }
     for (let { offset, size } of this.utils.createColIterator(
@@ -349,7 +321,15 @@ class Renderer extends SheetBasic {
       colsLength,
       width
     )) {
-      this.drawLine([offset + size, 0], [offset + size, viewHeight]);
+      this.drawLine(
+        [offset + size, 0],
+        [
+          offset + size,
+          rowStartIdx >= lastPageStartRow
+            ? this.utils.distanceOfRows(rowStartIdx, this.rowsLength)
+            : viewHeight,
+        ]
+      );
     }
     ctx.restore();
   }
@@ -497,20 +477,22 @@ class Renderer extends SheetBasic {
 
   protected drawLine(...points: [number, number][]) {
     assertIsDefined(this.renderContext);
-
     const { ctx } = this.renderContext;
     let [x, y] = points[0];
-    ctx.moveTo(this.npxLine(x), this.npxLine(y));
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.lineWidth % 2 !== 0) {
+      ctx.translate(0.5, 0.5);
+    }
+    ctx.moveTo(x, y);
     for (let i = 1; i < points.length; i++) {
       [x, y] = points[i];
-      ctx.lineTo(this.npxLine(x), this.npxLine(y));
+      ctx.lineTo(x, y);
     }
     ctx.stroke();
+    ctx.restore();
   }
 
-  protected npxLine(n: number) {
-    return n;
-  }
   protected applyCellStyle() {
     assertIsDefined(this.renderContext);
     this.formatBoxText();
@@ -586,31 +568,85 @@ class Renderer extends SheetBasic {
           resolvedTexts.push(text);
         }
       }
-      resolvedTexts = resolvedTexts.filter(Boolean);
-      const textHeight = (resolvedTexts.length - 1) * (fontSize + 2);
 
       let textY = this.boxTextY(
         verticalAlign,
-        fontSize + 2,
+        fontSize,
+        2,
         resolvedTexts.length
       );
-      resolvedTexts.forEach(resolvedText => {
+      resolvedTexts.forEach((resolvedText, i) => {
+        const textWidth = ctx.measureText(resolvedText).width;
         ctx.fillText(resolvedText, textX, textY);
+
+        if (lineThrough) {
+          this.drawTextLine(
+            'lineThrough',
+            textX,
+            textY,
+            textWidth,
+            fontSize,
+            boxStyle
+          );
+        }
+        if (underline) {
+          this.drawTextLine(
+            'underline',
+            textX,
+            textY,
+            textWidth,
+            fontSize,
+            boxStyle
+          );
+        }
         textY += fontSize + 2;
       });
       ctx.restore();
     }
   }
-
+  protected drawTextLine(
+    type: 'lineThrough' | 'underline',
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    { verticalAlign, horizontalAlign, color }: CellStyle
+  ) {
+    const { ctx } = this.renderContext;
+    if (type === 'lineThrough') {
+      if (verticalAlign === 'bottom') {
+        y -= height / 2;
+      } else if (verticalAlign === 'top') {
+        y += height / 2;
+      }
+    } else if (type === 'underline') {
+      if (verticalAlign === 'middle') {
+        y += height / 2;
+      } else if (verticalAlign === 'top') {
+        y += height;
+      }
+    }
+    if (horizontalAlign === 'center') {
+      x -= width / 2;
+    } else if (horizontalAlign === 'right') {
+      x -= width;
+    }
+    this.attrs({ strokeStyle: color, lineWidth: 1 });
+    this.drawLine(
+      [Math.floor(x), Math.floor(y)],
+      [Math.floor(x + width), Math.floor(y)]
+    );
+  }
   protected boxTextY(
     align: CellStyle['verticalAlign'],
     h: number,
+    gap: number,
     line: number
   ) {
     assertIsDefined(this.renderContext?.box);
     const { canvasOffsetY, height, boxStyle } = this.renderContext.box;
     const padding = boxStyle.padding ?? 0;
-    const totalHeight = h * line;
+    const totalHeight = (h + gap) * line;
     /*
      * See https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/textBaseline
      */
@@ -621,7 +657,7 @@ class Renderer extends SheetBasic {
     if (align === 'middle') {
       return Math.max(
         canvasOffsetY + padding + h / 2,
-        canvasOffsetY + height / 2 - (totalHeight - h) / 2
+        canvasOffsetY + height / 2 - totalHeight / 2 + h / 2
       );
     }
     if (align === 'bottom') {
@@ -660,12 +696,6 @@ class Renderer extends SheetBasic {
     } = this.renderContext.box;
 
     ctx.save();
-    // const {
-    //   borderTop,
-    //   borderBottom,
-    //   borderLeft,
-    //   borderRight,
-    // } = getBorderWidthFromStyle(boxStyle);
     this.attrs({
       fillStyle: boxStyle.fillStyle,
     });
@@ -684,58 +714,42 @@ class Renderer extends SheetBasic {
       height,
     } = this.renderContext.box;
     let { border, borderTop, borderRight, borderBottom, borderLeft } = boxStyle;
-
     if (border) {
-      borderTop = borderBottom = borderLeft = borderRight = border;
+      borderTop = borderTop ?? border;
+      borderRight = borderRight ?? border;
+      borderBottom = borderBottom ?? border;
+      borderLeft = borderLeft ?? border;
     }
-
-    ctx.save();
     ctx.lineCap = 'square';
     if (borderTop) {
-      ctx.beginPath();
       this.applyBorderStyle(borderTop);
       this.drawLine(
         [canvasOffsetX, canvasOffsetY],
         [canvasOffsetX + width, canvasOffsetY]
       );
-      // ctx.moveTo(canvasOffsetX, canvasOffsetY);
-      // ctx.lineTo(canvasOffsetX + width, canvasOffsetY);
-      // ctx.stroke();
     }
+
     if (borderRight) {
-      ctx.beginPath();
       this.applyBorderStyle(borderRight);
       this.drawLine(
         [canvasOffsetX + width, canvasOffsetY],
         [canvasOffsetX + width, canvasOffsetY + height]
       );
-      // ctx.moveTo(canvasOffsetX + width, canvasOffsetY);
-      // ctx.lineTo(canvasOffsetX + width, canvasOffsetY + height);
-      // ctx.stroke();
     }
     if (borderBottom) {
-      ctx.beginPath();
       this.applyBorderStyle(borderBottom);
       this.drawLine(
         [canvasOffsetX + width, canvasOffsetY + height],
         [canvasOffsetX, canvasOffsetY + height]
       );
-      // ctx.moveTo(canvasOffsetX + width, canvasOffsetY + height);
-      // ctx.lineTo(canvasOffsetX, canvasOffsetY + height);
-      // ctx.stroke();
     }
     if (borderLeft) {
-      ctx.beginPath();
       this.applyBorderStyle(borderLeft);
       this.drawLine(
         [canvasOffsetX, canvasOffsetY + height],
         [canvasOffsetX, canvasOffsetY]
       );
-      // ctx.moveTo(canvasOffsetX, canvasOffsetY + height);
-      // ctx.lineTo(canvasOffsetX, canvasOffsetY);
-      // ctx.stroke();
     }
-    ctx.restore();
   }
 
   protected getCurrentRenderingBox() {

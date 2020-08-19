@@ -45,7 +45,7 @@ export function getBorderWidthFromStyle(style: {
     borderTop,
   };
 }
-export function merge<T, F>(config1: T, config2: F) {
+export function merge<T, F>(config1: T, config2: F = {} as any) {
   const merged = { ...config1 };
   for (const key of Object.keys(config2)) {
     const value = config2[key];

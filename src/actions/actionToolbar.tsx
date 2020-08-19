@@ -59,6 +59,7 @@ const ActionMerge = register(
       const utils = sheet.utils;
       const state = sheet.getState();
       const isMatch = utils.isRectMatchMergesRect(...state.selectedRangeRect);
+      const snapshot = sheet.snapshot();
 
       if (isMatch) {
         sheet.setState({
@@ -73,13 +74,13 @@ const ActionMerge = register(
             state.selectedRangeRect[1],
           ],
         });
-        return true;
+        return snapshot;
       } else {
         sheet.setState(state => ({
           merges: utils.mergesAfterMergeSelectedRange(),
           selectedRect: [...state.selectedRangeRect],
         }));
-        return true;
+        return snapshot;
       }
     },
     commitHistory: true,

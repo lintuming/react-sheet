@@ -51,18 +51,28 @@ export type Cells = Sparse<Cell>;
 export type Rect = [number, number, number, number];
 
 export interface SheetData {
-  merges: [number, number, number, number][]; // per 4 number consist a merge range [x1,y1,x1end,y1end,x2,y2,x2end,y2end]
+  merges: Viewport[]; // per 4 number consist a merge range [x1,y1,x1end,y1end,x2,y2,x2end,y2end]
   freeze?: string;
   matrix: Sparse<Cells>;
   cols: RowOrCol;
   rows: RowOrCol;
   readOnly?: boolean;
 }
+
+export interface Viewport {
+  x: number;
+  y: number;
+  xEnd: number;
+  yEnd: number;
+}
+
 export type SheetInternalState = SheetData & {
   tag: number;
-  startIndexs: [number, number];
-  selectedRangeRect: [number, number, number, number]; //  [x1,y1,x2,y2]
-  selectedRect: [number, number, number, number];
+  viewport: Viewport;
+  selectGroupViewport: Viewport;
+  selectedViewport: Viewport;
+  // selectedRangeRect: [number, number, number, number]; //  [x1,y1,x2,y2]
+  // selectedRect: [number, number, number, number];
   resizingCol?: number | null;
   resizingRow?: number | null;
   resizedSize?: number | null;

@@ -54,7 +54,7 @@ export const ActionWheel = register(
           ? [state.startIndexs[0], Math.max(i, 0)]
           : [Math.max(i, 0), state.startIndexs[1]],
       }));
-      sheet.injection.scroll(Math.max(sum, offset), vertical, true);
+      sheet.injection.scroll(sum, vertical, true);
     },
   })
 );

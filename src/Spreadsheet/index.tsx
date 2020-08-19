@@ -5,18 +5,11 @@ import { dpr, merge, throwError, addMatchMediaListener } from 'utils';
 import SheetManager, { SheetManagerEventName } from 'core/SheetManage';
 import { useIsomorphicLayoutEffect } from 'hooks/useIsomorphicLayoutEffect';
 import { useLayoutUpdateEffect } from 'hooks/useUpdateEffect';
-
-import LayerUI from './components/LayerUI';
 import { ToolBar } from './components/Toolbar';
+import LayerUI from './components/LayerUI';
+import { SCROLLBAR_SIZE, DEFAULT_CONFIG } from 'consts';
+import { Injection } from 'core/types';
 
-const defaultConfig: SpreadsheetConfig = {
-  initialDatas: [],
-  initialIndex: 0,
-  width: 1000,
-  height: 600,
-  showToolbar: true,
-  showSheetChenger: true,
-};
 const SpreadsheetContext = React.createContext<SheetManager | null>(null);
 
 export const useSheetManger = () => {
@@ -31,11 +24,7 @@ export const useSheetManger = () => {
   const forceUpdate = React.useCallback(() => _forceUpdate({}), []);
 
   useIsomorphicLayoutEffect(() => {
-    const off = manager.on(
-      [SheetManagerEventName.INIT, SheetManagerEventName.SheetChange],
-      forceUpdate
-    );
-
+    const off = manager.on([SheetManagerEventName.SheetChange], forceUpdate);
     return () => {
       off();
     };
@@ -44,22 +33,64 @@ export const useSheetManger = () => {
   return { sheetManager: manager, forceUpdate };
 };
 
+const safeCallInjection: Injection = {
+  getCanvas: () => null,
+  getCanvasSize: () => ({
+    canvasWidth: 0,
+    canvasHeight: 0,
+    domHeight: 0,
+    domWidth: 0,
+  }),
+  getConfig: () => DEFAULT_CONFIG,
+  getScrollOffset: () => ({ scrollLeft: 0, scrollTop: 0 }),
+  scroll: () => {},
+  setCursorType: () => {},
+};
+
+export const useSafelyInjection = () => {
+  const { sheetManager, forceUpdate } = useSheetManger();
+  const deps = React.useRef({});
+  useIsomorphicLayoutEffect(() => {
+    sheetManager.on(SheetManagerEventName.inject, key => {
+      if (deps.current[key]) {
+        forceUpdate();
+      }
+    });
+  }, [sheetManager]);
+
+  return React.useMemo(() => {
+    return new Proxy({} as Injection, {
+      get(_, key) {
+        deps.current[key] = true;
+        if (!sheetManager.injectionDeps[key as any]) {
+          return safeCallInjection[key];
+        }
+        return sheetManager.injection[key];
+      },
+      set() {
+        // TODO
+        throw Error('Unmutable');
+      },
+    });
+  }, [sheetManager]);
+};
+
 const Spreadsheet: React.FC<SpreadsheetProps> = ({
   spreadsheet,
   children,
   ...props
 }) => {
-  const config = merge(defaultConfig, props);
+  const config = merge(DEFAULT_CONFIG, props);
   const configRef = React.useRef(config);
   const sheetManager = React.useMemo(() => spreadsheet || new SheetManager(), [
     spreadsheet,
   ]);
   const getCanvasSize = () => {
-    const domWidth = config.width - SheetManager.barSize;
-    const domHeight = config.height - SheetManager.barSize;
+    const config = configRef.current;
+    const domWidth = config.width - SCROLLBAR_SIZE;
+    const domHeight = config.height - SCROLLBAR_SIZE;
     const canvasWidth = domWidth * dpr();
     const canvasHeight = domHeight * dpr();
-
     return {
       domWidth,
       domHeight,
@@ -68,7 +99,6 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     };
   };
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const forceUpdate = React.useState([])[1];
   useIsomorphicLayoutEffect(() => {
     configRef.current = config;
   });
@@ -84,9 +114,6 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
       getConfig: () => configRef.current,
     });
     sheetManager.init();
-    addMatchMediaListener(() => {
-      forceUpdate([]);
-    });
   }, []);
 
   useLayoutUpdateEffect(() => {
@@ -97,28 +124,30 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
   const { canvasWidth, canvasHeight, domHeight, domWidth } = getCanvasSize();
 
   return (
-    <SpreadsheetContext.Provider value={sheetManager}>
-      <div
-        className={'react-sheet-container'}
-        style={{
-          width: width + 23,
-          height: height + 23,
-        }}
-      >
-        <ToolBar></ToolBar>
-        <LayerUI width={width} height={height} />
-        <canvas
-          ref={canvasRef}
-          width={canvasWidth}
-          height={canvasHeight}
+    <>
+      <SpreadsheetContext.Provider value={sheetManager}>
+        <div
+          className={'react-sheet-container'}
           style={{
-            width: domWidth,
-            height: domHeight,
+            width: width,
+            height: height,
           }}
-        />
-        <div>tests</div>
-      </div>
-    </SpreadsheetContext.Provider>
+        >
+          <ToolBar></ToolBar>
+          <LayerUI width={width} height={domHeight} />
+          <canvas
+            ref={canvasRef}
+            width={canvasWidth}
+            height={canvasHeight}
+            style={{
+              width: domWidth,
+              height: domHeight,
+            }}
+          />
+          <div>tests</div>
+        </div>
+      </SpreadsheetContext.Provider>
+    </>
   );
 };
 

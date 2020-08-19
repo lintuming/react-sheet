@@ -1,4 +1,4 @@
-import { CellStyle, SheetData } from 'types';
+import { CellStyle, SheetData, SpreadsheetConfig } from 'types';
 import { border, deepFreeze } from 'utils';
 const IS_SERVE = typeof window === 'undefined';
 
@@ -32,6 +32,7 @@ export enum Formats {
 }
 const DRAGGER_SIZE = 5;
 const RESIZER_SIZE = 3;
+export const SCROLLBAR_SIZE = 13;
 enum CURSOR_TYPE {
   DEFAULT = 'unset',
   CROSSHAIR = 'crosshair',
@@ -76,7 +77,7 @@ enum Colors {
   gridLineStroke = '#e2e2e3',
   gridBoxFill = '#fff',
 
-  canvasBoxFill = 'white',
+  canvasBoxFill = '#f3f3f3',
 
   selectedLineStroke = '#1a73e8',
   selectedDraggerBoxFill = '#1473e8',
@@ -185,33 +186,89 @@ const EmptyCell = deepFreeze({
   text: '',
   style: DEFAULT_CELL_STYLE,
 });
+export const DEFAULT_CONFIG: SpreadsheetConfig = {
+  initialDatas: [],
+  initialIndex: 0,
+  width: 1000,
+  height: 600,
+  showToolbar: true,
+  showSheetChenger: true,
+};
+
+const matrix: { [key: string]: any } = {};
+for (let i = 0; i < 100000; i += 1) {
+  matrix[i] = {
+    0: { text: 'A-' + i },
+    1: { text: 'B-' + i },
+    2: { text: 'C-' + i },
+    3: { text: 'D-' + i },
+    4: { text: 'E-' + i },
+    5: { text: 'F-' + i },
+  };
+}
 
 const DEFAULT_SHEET_DATA: SheetData = {
-  matrix: {
-    4: {
-      4: {
-        text: '1234567asfasf89101121314151617',
-        style: {
-          border: '1px solid green ',
-          textOverflow: 'wrap',
-          fillStyle: 'pink',
+  matrix: true
+    ? matrix
+    : {
+        8: {
+          4: {
+            text: '123\ntest',
+            style: {
+              borderTop: '1px solid red',
+              fontSize: 10,
+              verticalAlign: 'top',
+              underline: true,
+            },
+          },
+        },
+        5: {
+          1: {
+            text: 'test\ntest',
+            style: {
+              border: '1px solid red ',
+              textOverflow: 'wrap',
+              lineThrough: true,
+              fontSize: 15,
+            },
+          },
+          3: {
+            text: 'testtest',
+            style: {
+              textOverflow: 'wrap',
+              verticalAlign: 'top',
+              border: '1px solid red',
+              lineThrough: true,
+              fontSize: 15,
+            },
+          },
+        },
+        6: {
+          3: {
+            text: 'testtest',
+            style: {
+              textOverflow: 'wrap',
+              verticalAlign: 'top',
+              border: '1px solid red',
+              lineThrough: true,
+              fontSize: 15,
+            },
+          },
+          4: {
+            text: 'test/test',
+            style: {
+              border: '1px solid red ',
+              textOverflow: 'wrap',
+              underline: true,
+              fontSize: 15,
+            },
+          },
         },
       },
-    },
-    1: {
-      1: {
-        text: '123456789101121314151617',
-        style: {
-          border: '1px solid red ',
-          textOverflow: 'wrap',
-        },
-      },
-    },
-  },
   merges: [
-    [4, 4, 6, 6],
-    [1, 1, 4, 2],
-    [0, 11, 8, 11],
+    // [4, 4, 6, 6],
+    // [1, 1, 4, 2],
+    // [0, 11, 8, 11],
   ],
   rows: {
     length: 100,
@@ -219,7 +276,7 @@ const DEFAULT_SHEET_DATA: SheetData = {
     [-1]: 20,
   },
   cols: {
-    defaultSize: 100,
+    defaultSize: 65,
     length: 150,
     [-1]: 60,
   },

@@ -28,7 +28,7 @@ interface HistoryStackValue {
 }
 type SnapshotState = Pick<
   SheetInternalState,
-  | 'startIndexs'
+  | 'gridRect'
   | 'selectedRect'
   | 'selectedRangeRect'
   | 'rows'

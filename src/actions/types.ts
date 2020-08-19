@@ -1,6 +1,8 @@
 import SheetInstance from 'core/SheetBasic';
 import SheetManager from 'core/SheetManage';
 import Sheet from 'core/Sheet';
+import { SheetInternalState } from 'types';
+import { SnapshotState } from 'core/types';
 
 export enum ActionName {
   scroll = 'scroll',
@@ -14,7 +16,7 @@ export enum ActionName {
   merge = 'merge',
 }
 
-type ShouldCommitToHistory = boolean | void;
+type Snapshot = SnapshotState | void | undefined;
 
 type Third<T extends any[]> = ((...t: T) => void) extends (
   h1: any,
@@ -28,11 +30,9 @@ type ActionFn<T> = (
   sheetManager: SheetManager,
   payload: T,
   sheet: Sheet
-) => ShouldCommitToHistory;
+) => Snapshot;
 
-type ActionFnBind = (
-  ...args: Third<Parameters<ActionFn<any>>>
-) => ShouldCommitToHistory;
+type ActionFnBind = (...args: Third<Parameters<ActionFn<any>>>) => Snapshot;
 
 interface KeyTestFn {
   (event: KeyboardEvent, sheetManager: SheetManager): boolean;

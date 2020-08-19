@@ -13,7 +13,7 @@ type Update = {
  * Sheet --------->  Renderer  ---------> SheetUtil  ---------> SheetStateWatcher
  */
 class Sheet extends Renderer {
-  history: SheetHistory;
+  readonly history: SheetHistory;
 
   private updateQueued: Update[];
 
@@ -28,8 +28,6 @@ class Sheet extends Renderer {
     };
     this.updateQueued = [];
     this.on('.', () => {
-      //@ts-ignore
-      window.state = this.state;
       if (this.didScheduleRenderThisTick === true) return;
       this.didScheduleRenderThisTick = true;
       this.scheduleUpdate(() => {
@@ -84,15 +82,10 @@ class Sheet extends Renderer {
   }
 
   applyAction(payload: ActionPayload) {
-    const { action, excute } = payload;
-    let snapshot: SnapshotState;
+    const { excute } = payload;
+    const snapshot = excute(this);
 
-    if (action.commitHistory) {
-      snapshot = this.snapshot();
-    }
-    const shouldCommit = excute(this);
-
-    if (shouldCommit) {
+    if (snapshot) {
       assertIsDefined(snapshot!);
       this.history.undoStack.push({
         undo: snapshot!,
@@ -104,7 +97,7 @@ class Sheet extends Renderer {
   protected stripSheetState(): SnapshotState {
     const {
       selectedRect,
-      startIndexs,
+      gridRect,
       selectedRangeRect,
       readOnly,
       tag,
@@ -117,7 +110,7 @@ class Sheet extends Renderer {
     return {
       ...rest,
       selectedRect,
-      startIndexs,
+      gridRect,
       selectedRangeRect,
     };
   }
@@ -127,7 +120,7 @@ class Sheet extends Renderer {
   }
 
   snapshot() {
-    return deepClone(this.stripSheetState());
+    return this.stripSheetState();
   }
 
   getState(): SheetInternalState {

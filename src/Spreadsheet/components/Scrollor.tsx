@@ -1,10 +1,10 @@
 import React from 'react';
 import './ScrollBar.css';
-import { useSheetManger } from '..';
+import { useSheetManger, useSafelyInjection } from '..';
 import { useIsomorphicLayoutEffect } from 'hooks/useIsomorphicLayoutEffect';
 import { ActionScroll } from 'actions';
-import SheetManager from 'core/SheetManage';
 import { sendWheelEvent } from '../utils';
+import { SCROLLBAR_SIZE } from 'consts';
 type ScrollBarProps = {
   direction?: 'horizontal' | 'vertical';
   size?: number;
@@ -30,15 +30,8 @@ const ScrollBar = React.forwardRef(
           height: 1,
         };
 
-    const { sheetManager } = useSheetManger();
-
-    if (!sheetManager.inited) {
-      return null;
-    }
-    const {
-      domWidth,
-      domHeight,
-    } = sheetManager.sheet.injection.getCanvasSize();
+    const injection = useSafelyInjection();
+    const { domWidth, domHeight } = injection.getCanvasSize();
 
     const warpperStyle = isVertical
       ? ({
@@ -62,9 +55,9 @@ const ScrollBar = React.forwardRef(
         }`}
         style={{
           ...(isVertical
-            ? { width: SheetManager.barSize, height: offset }
+            ? { width: SCROLLBAR_SIZE, height: offset }
             : {
-                height: SheetManager.barSize,
+                height: SCROLLBAR_SIZE,
                 width: offset,
               }),
         }}
@@ -93,7 +86,7 @@ const Scrollor: React.FC<{
   x: number;
   y: number;
 }> = ({ y, x }) => {
-  const { sheetManager, forceUpdate } = useSheetManger();
+  const { sheetManager } = useSheetManger();
   // the total height and width
   const xRef = React.useRef<HTMLDivElement>(null);
   const yRef = React.useRef<HTMLDivElement>(null);

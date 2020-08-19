@@ -36,12 +36,13 @@ export interface PointerEventHandler {
 
 export const initPointerdownState = (
   sheetManager: SheetManager,
-  moveState: ReturnType<typeof initializeMoveState> | null,
+  moveState: PointerMoveState | null,
   event: ReactPointerEvent
-): PointerDownState => {
+): PointerDownState | null => {
   if (!moveState) {
     moveState = initializeMoveState(sheetManager, event);
   }
+  if (!moveState) return null;
   const { pointerDownState, ...rest } = moveState;
   return {
     ...rest,
@@ -53,12 +54,13 @@ export const initializeMoveState = (
   sheetManager: SheetManager,
   event: ReactPointerEvent,
   downState?: PointerDownState | null
-): PointerMoveState => {
+): PointerMoveState | null => {
   const utils = sheetManager.sheet.utils;
   const state = sheetManager.sheet.getState();
   const canvasOffsetX = event.nativeEvent.offsetX;
   const canvasOffsetY = event.nativeEvent.offsetY;
   const index = utils.mouseOffsetToGridIndex(canvasOffsetX, canvasOffsetY);
+
   const [x, y, gridOffsetX, gridOffsetY] = index;
   const merge = utils.isGridLocateMergeRect(x, y);
   let normalizeRect = [x, y, x, y] as const;
@@ -147,15 +149,8 @@ function nextStateByPointerDown(
 export const ActionPointerDown = register(
   createAction({
     name: ActionName.pointerDown,
-    perform(
-      _,
-      {
-        pointerDownState,
-      }: {
-        pointerDownState: PointerDownState;
-      },
-      sheet
-    ) {
+    perform(_, pointerDownState: PointerDownState | null, sheet) {
+      if (!pointerDownState) return;
       const { cursorOn } = pointerDownState;
       sheet.setState(state => ({
         tag: markTag(
@@ -232,8 +227,10 @@ function getNextStateByMouseMove(
   moveState: PointerMoveState
 ): Partial<SheetInternalState> {
   sheet.injection.setCursorType(CURSOR_TYPE.DEFAULT);
+  if (!moveState) return state;
   const { cursorOn, rect } = moveState;
   const [x, y] = rect;
+
   const utils = sheet.utils;
   if (cursorOn.serieBox) {
     sheet.injection.setCursorType(CURSOR_TYPE.CROSSHAIR);
@@ -268,7 +265,8 @@ function getNextStateByMouseMove(
 export const ActionPointerMove = register(
   createAction({
     name: ActionName.pointerMove,
-    perform(_, moveState: PointerMoveState, sheet) {
+    perform(_, moveState: PointerMoveState | null, sheet) {
+      if (!moveState) return;
       if (moveState.pointerDownState) {
         sheet.setState(state =>
           getNextStateByMouseDrag(sheet, state, moveState)
@@ -297,6 +295,7 @@ export const ActionPointerUp = register(
         startIndexs,
       } = sheet.getState();
       if (resizedSize != null && (resizingCol != null || resizingRow != null)) {
+        const snapshot = sheet.snapshot();
         const [startX, startY] = startIndexs;
         const canvasOffset = sheet.utils.distanceToCanvasOrigin(
           resizingCol ?? startX,
@@ -315,10 +314,9 @@ export const ActionPointerUp = register(
             resizingRow: null,
           });
           // Should commit to History
-          return true;
+          return snapshot;
         }
       }
-      return false;
     },
   })
 );

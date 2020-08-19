@@ -1,21 +1,42 @@
 import React from 'react';
-import { useSheetManger } from 'Spreadsheet';
-import Sheet from 'core/Sheet';
-import { useIsomorphicLayoutEffect } from 'hooks/useIsomorphicLayoutEffect';
-import { useMutableValue } from 'hooks/useMutableValue';
+import { useSheetManger, useSafelyInjection } from 'Spreadsheet';
+
 import { CellStyle } from 'types';
-import { merge, getBorderWidthFromStyle } from 'utils';
+import { merge, getBorderWidthFromStyle, parseBorder } from 'utils';
 import './CellTextEditor.css';
-type CellTextEditorProps = {
-  hidden?: boolean;
+
+export type EditorRef = {
+  dom: () => HTMLDivElement | null;
+  updateCell: () => void;
 };
-export default function CellTextEditor({ hidden }: CellTextEditorProps) {
+
+export default React.forwardRef(function CellTextEditor(
+  props: React.DetailedHTMLProps<
+    React.HTMLAttributes<HTMLDivElement>,
+    HTMLDivElement
+  > & {
+    [key: string]: any;
+  },
+  handler: React.Ref<EditorRef>
+) {
   const { sheetManager, forceUpdate } = useSheetManger();
   const sheet = sheetManager.sheet;
-  const state = sheet.getState();
   const ref = React.useRef<HTMLDivElement>(null);
-  const cell = sheet.utils.getCellOfSelectedRect();
+  const injection = useSafelyInjection();
 
+  React.useImperativeHandle(
+    handler,
+    () => ({
+      dom: () => ref.current,
+      updateCell: () => {
+        const state = sheet.getState();
+        sheet.updateCell(state.selectedRect[0], state.selectedRect[1], {
+          text: ref.current?.innerText ?? '',
+        });
+      },
+    }),
+    [sheet]
+  );
   const applyStyle = <T extends HTMLElement>(
     target: T,
     style: CellStyle,
@@ -29,6 +50,7 @@ export default function CellTextEditor({ hidden }: CellTextEditorProps) {
       italic,
       bold,
       lineThrough,
+      underline,
     } = style;
     const _style = `
       background:${fillStyle};
@@ -37,11 +59,14 @@ export default function CellTextEditor({ hidden }: CellTextEditorProps) {
       font-family:${fontFamily};
       font-style:${italic ? 'italic' : 'unset'};
       font-weight:${bold ? 'bold' : 'normal'};
-      text-decorator:${lineThrough ? 'line-through' : 'unset'};
+      text-decoration:${
+        lineThrough ? 'line-through' : underline ? 'underline' : 'unset'
+      };
       ${extend}
     `;
     target.setAttribute('style', _style);
   };
+
   React.useEffect(() => {
     sheet.on('UpdateState', event => {
       if (
@@ -59,33 +84,40 @@ export default function CellTextEditor({ hidden }: CellTextEditorProps) {
             width,
             height,
           } = sheet.utils.getBoundingClientRect(...sr);
-          const cellStyle = merge(sheet.styleConfig.cell, cell.style);
+          const cellStyle = merge(sheet.styleConfig.cell, cell.style ?? {});
+          const {
+            borderTop,
+            borderBottom,
+            borderLeft,
+            borderRight,
+          } = getBorderWidthFromStyle(cellStyle);
+          const { domWidth } = injection.getCanvasSize();
+          const maxWidth = domWidth - canvasOffsetX;
           applyStyle(
             current,
             cellStyle,
-            `left:${canvasOffsetX}px;top:${canvasOffsetY}px;min-width:${width + 2}px;min-height:${height + 2}px;border:${sheet.styleConfig.selected.border};`
+            `
+            left:${canvasOffsetX - borderLeft}px;
+            top:${canvasOffsetY - borderRight}px;
+            min-width:${width + borderLeft + borderRight}px;
+            min-height:${height + borderTop + borderBottom}px;
+            border:${sheet.styleConfig.selected.border};
+            max-width:${maxWidth}px;
+            `
           );
         }
         forceUpdate();
       }
     });
-  }, [forceUpdate, sheet]);
-  const inActive =
-    !sheetManager.inited ||
-    hidden ||
-    !sheet.utils.isRectInViewport(state.selectedRect);
-  React.useEffect(() => {
-    if (ref.current) {
-      ref.current.focus();
-    }
-  }, [inActive]);
+  }, [forceUpdate, sheet, injection]);
+
   return (
     <div
       className="react-sheet-cell-text-editor"
+      {...props}
       ref={ref}
-      hidden={inActive}
       onPaste={e => {}}
       contentEditable
     ></div>
   );
-}
+});

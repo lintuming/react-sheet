@@ -9,45 +9,57 @@ import { Injection } from './types';
 import { EventEmmit } from './EventEmmit';
 
 export enum SheetManagerEventName {
-  INIT = 'init',
+  inject = 'inject',
   SheetChange = 'SheetChange',
 }
 
-const throwInjectError = throwWhenCall(ErrorMsgs.Inject_Error_Msg);
-
 class SheetManager extends EventEmmit<
   SheetManagerEventName,
-  SheetManager,
-  (SheetManager: SheetManager) => void
+  any,
+  (value: any) => void
 > {
-  static barSize = 13;
+  // static barSize = 13;
 
-  injection: Injection;
-
-  // Send: Injection['send'];
-  injected?: boolean;
-
+  readonly injection: Injection;
   actionsManager: ActionsManage;
 
   sheets: Sheet[];
 
   private _index: number;
-
-  inited?: boolean;
-
+  injectionDeps: {
+    [key: string]: boolean;
+    [key: number]: boolean;
+  };
   scheduleUpdate: ActionManagerNotify;
 
   constructor() {
     super();
-    this.injection = {
-      getCanvas: throwInjectError,
-      // GetSpreadsheetState: throwInjectError,
-      getConfig: throwInjectError,
-      scroll: throwInjectError,
-      getCanvasSize: throwInjectError,
-      getScrollOffset: throwInjectError,
-      setCursorType: throwInjectError,
+    this.injectionDeps = {
+      getCanvas: false,
+      getConfig: false,
+      scroll: false,
+      getCanvasSize: false,
+      getScrollOffset: false,
+      setCursorType: false,
     };
+    this.injection = new Proxy({} as Injection, {
+      get: (target, key) => {
+        if (this.injectionDeps[key as any]) {
+          return Reflect.get(target, key);
+        } else {
+          throw Error(
+            `Injection: \`${String(
+              key
+            )}\` is not injected yet! this is likely a bug of react-sheet`
+          );
+        }
+      },
+      set: (target, key, value) => {
+        this.injectionDeps[key as any] = true;
+        this.emit(SheetManagerEventName.inject, key);
+        return Reflect.set(target, key, value);
+      },
+    });
     // Handle actions
     this.scheduleUpdate = (fn, action) => {
       const payload = {
@@ -90,14 +102,11 @@ class SheetManager extends EventEmmit<
 
   init() {
     const { initialDatas, initialIndex } = this.injection.getConfig();
-
     this.index = initialIndex;
     for (let i = 0; i < initialDatas.length; i++) {
       this.addSheet(initialDatas[i], i === 0);
     }
     this.render();
-    this.inited = true;
-    this.emit(SheetManagerEventName.INIT, this);
   }
 
   addSheet(sheetDataInit: SheetDataPartial, active?: boolean) {
@@ -114,11 +123,6 @@ class SheetManager extends EventEmmit<
   inject(injection: Partial<Injection>) {
     for (const key in injection) {
       const k: keyof Injection = key as any;
-      if (this.injection[k] && this.injection[k] !== throwInjectError) {
-        throwError(
-          `Can not inject ${key} twice, this is likely a bug in Spreadsheet`
-        );
-      }
       this.injection[k] = injection[k] as any;
     }
   }
