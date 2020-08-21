@@ -1,6 +1,8 @@
 import SheetManager from 'core/SheetManage';
 import { ScrollState } from 'types';
 import { ActionWheel } from 'actions/actionScroll';
+import { getColSize } from 'core/utils/col';
+import { getRowSize } from 'core/utils/row';
 
 const sendWheelEvent = (
   sheetManager: SheetManager,
@@ -19,8 +21,8 @@ const sendWheelEvent = (
 ) => {
   const { domWidth, domHeight } = sheetManager.sheet.injection.getCanvasSize();
   const max = isVertical
-    ? scrollHeight - (domHeight - sheetManager.sheet.utils.getRowSize(-1))
-    : scrollWidth - (domWidth - sheetManager.sheet.utils.getColSize(-1));
+    ? scrollHeight - (domHeight - getRowSize(sheetManager.sheet, -1))
+    : scrollWidth - (domWidth - getColSize(sheetManager.sheet, -1));
   const offset = Math.min(
     max,
     (isVertical ? scrollState.scrollTop : scrollState.scrollLeft) + delta

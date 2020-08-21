@@ -1,6 +1,6 @@
 import SheetManager from 'core/SheetManage';
 import { CURSOR_TYPE, RESIZER_SIZE } from 'consts';
-import Sheet from 'core/SheetBasic';
+import Sheet from 'core/Sheet';
 import { SheetInternalState } from 'types';
 import { register, createAction } from './register';
 import { ActionName } from './types';
@@ -10,13 +10,31 @@ import {
   SerieBoxPressed,
   MainButtonPressed,
 } from 'core/SheetTags';
+import {
+  distanceOfCellToCanvasOrigin,
+  mouseCoordsToCellCoords,
+} from 'core/utils/distance';
+import { isCellInMergeViewport, hitSeriebox } from 'core/utils/hitTest';
+import { getColSize } from 'core/utils/col';
+import { getRowSize } from 'core/utils/row';
+import {
+  getNewViewportContainsAll,
+  getViewportToContainMergeViewport,
+} from 'core/utils/viewport';
+
+import Viewport from 'core/Viewport';
+import {
+  getColSizeAfterResize,
+  getRowSizeAfterResize,
+} from 'core/utils/resize';
 
 export type ReactPointerEvent = React.MouseEvent<HTMLDivElement>;
 export type PointerMoveState = {
-  rect: readonly [number, number, number, number];
-  normalizeRect: readonly [number, number, number, number];
-  canvasOffset: [number, number];
-  cursorOn: {
+  originViewport: Viewport;
+  viewport: Viewport;
+  mouseX: number;
+  mouseY: number;
+  hit: {
     col?: boolean;
     row?: boolean;
     colResize?: boolean;
@@ -55,54 +73,52 @@ export const initializeMoveState = (
   event: ReactPointerEvent,
   downState?: PointerDownState | null
 ): PointerMoveState | null => {
-  const utils = sheetManager.sheet.utils;
+  const sheet = sheetManager.sheet;
   const state = sheetManager.sheet.getState();
-  const canvasOffsetX = event.nativeEvent.offsetX;
-  const canvasOffsetY = event.nativeEvent.offsetY;
-  const index = utils.mouseOffsetToGridIndex(canvasOffsetX, canvasOffsetY);
-
+  const mouseX = event.nativeEvent.offsetX;
+  const mouseY = event.nativeEvent.offsetY;
+  const index = mouseCoordsToCellCoords(sheet, mouseX, mouseY);
   const [x, y, gridOffsetX, gridOffsetY] = index;
-  const merge = utils.isGridLocateMergeRect(x, y);
-  let normalizeRect = [x, y, x, y] as const;
-  let rect = normalizeRect;
-  const { sheet } = sheetManager;
-  const onSerieBox = utils.isCursorOnSerieBox(canvasOffsetX, canvasOffsetY);
+  const merge = isCellInMergeViewport(sheet, x, y);
+  let viewport = new Viewport(x, y, x, y);
+  let finalViewport = viewport.spawn();
+  const onSerieBox = hitSeriebox(sheet, mouseX, mouseY);
   const onCol = y === -1;
   const onRow = x === -1;
   const onColResize =
     onCol &&
-    state.cols[-1] + gridOffsetX + utils.getColSize(x) - canvasOffsetX <=
+    state.cols[-1] + gridOffsetX + getColSize(sheet, x) - mouseX <=
       RESIZER_SIZE;
   const onRowResize =
     onRow &&
-    state.rows[-1] + gridOffsetY + utils.getRowSize(y) - canvasOffsetY <=
+    state.rows[-1] + gridOffsetY + getRowSize(sheet, y) - mouseY <=
       RESIZER_SIZE;
-
   if (
     (!downState && (onRow || onCol)) ||
-    (downState && (downState.cursorOn.col || downState.cursorOn.row))
+    (downState && (downState.hit.col || downState.hit.row))
   ) {
-    if (onCol || (downState && downState.cursorOn.col)) {
-      normalizeRect = [x, 0, x, sheet.rowsLength - 1];
+    if (onCol || (downState && downState.hit.col)) {
+      finalViewport = new Viewport(x, 0, x, sheet.rowsLength - 1);
     }
-    if (onRow || (downState && downState.cursorOn.row)) {
-      normalizeRect = [0, y, sheet.colsLength - 1, y];
+    if (onRow || (downState && downState.hit.row)) {
+      finalViewport = new Viewport(0, y, sheet.colsLength - 1, y);
     }
   } else if (merge) {
-    normalizeRect = [...merge.rect];
+    finalViewport = merge.viewport;
   }
 
   return {
-    rect,
-    normalizeRect,
-    cursorOn: {
+    originViewport: viewport,
+    viewport: finalViewport,
+    hit: {
       col: onCol,
       row: onRow,
       colResize: onColResize,
       rowResize: onRowResize,
       serieBox: onSerieBox,
     },
-    canvasOffset: [canvasOffsetX, canvasOffsetY],
+    mouseX,
+    mouseY,
     pointerDownState: downState,
   };
 };
@@ -110,39 +126,34 @@ export const initializeMoveState = (
 function nextStateByPointerDown(
   sheet: Sheet,
   state: SheetInternalState,
-  { cursorOn, normalizeRect }: PointerDownState
-) {
-  let selectedRangeRect: SheetInternalState['selectedRangeRect'] = [
-    ...normalizeRect,
-  ];
-  if (cursorOn.col) {
-    selectedRangeRect[1] = 0;
-    selectedRangeRect[3] = sheet.rowsLength - 1;
+  { hit, viewport }: PointerDownState
+): Partial<SheetInternalState> {
+  let newSelectedGroupViewport = viewport.spawn();
+  let newSelectedViewport = viewport.spawn();
+  const { x, y, xEnd, yEnd } = state.gridViewport;
+  if (hit.col) {
+    newSelectedGroupViewport.y = 0;
+    newSelectedGroupViewport.yEnd = sheet.rowsLength - 1;
+    newSelectedViewport.y = y;
+    newSelectedViewport.yEnd = y;
   }
-  if (cursorOn.row) {
-    selectedRangeRect[0] = 0;
-    selectedRangeRect[2] = sheet.colsLength - 1;
+  if (hit.row) {
+    newSelectedGroupViewport.x = 0;
+    newSelectedGroupViewport.xEnd = sheet.colsLength - 1;
+    newSelectedViewport.x = x;
+    newSelectedViewport.xEnd = x;
   }
-  selectedRangeRect = [
-    ...sheet.utils.enlargeRectToContainMerges(...selectedRangeRect),
-  ];
-  const utils = sheet.utils;
-  let [x, y] = normalizeRect;
-  const [xStart, yStart] = state.startIndexs;
-  let selectedRect: SheetInternalState['selectedRect'] = [...normalizeRect];
-  if (cursorOn.row || cursorOn.col) {
-    x = Math.max(x, xStart);
-    y = Math.max(y, yStart);
-    selectedRect = [x, y, x, y];
-    const merge = utils.isGridLocateMergeRect(x, y);
-    if (merge && merge.rect) {
-      selectedRect = [...merge.rect];
-    }
-  }
-
+  newSelectedGroupViewport = getViewportToContainMergeViewport(
+    sheet,
+    newSelectedGroupViewport
+  );
+  newSelectedViewport = getViewportToContainMergeViewport(
+    sheet,
+    newSelectedViewport
+  );
   return {
-    selectedRect,
-    selectedRangeRect,
+    selectedGroupViewport: newSelectedGroupViewport,
+    selectedViewport: newSelectedViewport,
   };
 }
 
@@ -151,14 +162,14 @@ export const ActionPointerDown = register(
     name: ActionName.pointerDown,
     perform(_, pointerDownState: PointerDownState | null, sheet) {
       if (!pointerDownState) return;
-      const { cursorOn } = pointerDownState;
+      const { hit } = pointerDownState;
       sheet.setState(state => ({
         tag: markTag(
           state.tag,
-          cursorOn.serieBox ? SerieBoxPressed : MainButtonPressed
+          hit.serieBox ? SerieBoxPressed : MainButtonPressed
         ),
       }));
-      if (cursorOn.colResize || cursorOn.rowResize || cursorOn.serieBox) {
+      if (hit.colResize || hit.rowResize || hit.serieBox) {
         return;
       }
       sheet.setState(state =>
@@ -173,51 +184,28 @@ function getNextStateByMouseDrag(
   state: SheetInternalState,
   moveState: PointerMoveState
 ): Partial<SheetInternalState> {
-  const utils = sheet.utils;
-  const { canvasOffset, normalizeRect, pointerDownState } = moveState;
-  const {
-    normalizeRect: downNormalizeRect,
-    cursorOn: cursorOnWhenDown,
-  } = pointerDownState!;
-  if (cursorOnWhenDown.serieBox) {
+  const { mouseY, mouseX, viewport, pointerDownState } = moveState;
+  const { viewport: downStateViewport, hit: downStateHit } = pointerDownState!;
+  if (downStateHit.serieBox) {
     return state;
   }
   if (state.resizingCol != null) {
     return {
-      resizedSize: utils.getSizeAfterResize(
-        state.resizingCol,
-        0,
-        canvasOffset[0]
-      )[0],
+      resizedSize: getColSizeAfterResize(sheet, state.resizingCol, mouseX),
     };
   }
   if (state.resizingRow != null) {
     return {
-      resizedSize: utils.getSizeAfterResize(
-        0,
-        state.resizingRow,
-        canvasOffset[1]
-      )[1],
+      resizedSize: getRowSizeAfterResize(sheet, state.resizingRow, mouseY),
     };
   }
-  let rectXStart, rectYStart, rectXEnd, rectYEnd;
-  [rectXStart, rectYStart, rectXEnd, rectYEnd] = utils.getRectByRects(
-    [...downNormalizeRect],
-    [...normalizeRect]
+  let newViewport = getViewportToContainMergeViewport(
+    sheet,
+    getNewViewportContainsAll([viewport, downStateViewport])
   );
-  [
-    rectXStart,
-    rectYStart,
-    rectXEnd,
-    rectYEnd,
-  ] = utils.enlargeRectToContainMerges(
-    rectXStart,
-    rectYStart,
-    rectXEnd,
-    rectYEnd
-  );
+
   return {
-    selectedRangeRect: [rectXStart, rectYStart, rectXEnd, rectYEnd],
+    selectedGroupViewport: newViewport,
   };
 }
 
@@ -228,19 +216,16 @@ function getNextStateByMouseMove(
 ): Partial<SheetInternalState> {
   sheet.injection.setCursorType(CURSOR_TYPE.DEFAULT);
   if (!moveState) return state;
-  const { cursorOn, rect } = moveState;
-  const [x, y] = rect;
-
-  const utils = sheet.utils;
-  if (cursorOn.serieBox) {
+  const { hit, viewport } = moveState;
+  if (hit.serieBox) {
     sheet.injection.setCursorType(CURSOR_TYPE.CROSSHAIR);
   }
-  if (cursorOn.colResize) {
+  if (hit.colResize) {
     sheet.injection.setCursorType(CURSOR_TYPE.RESIZEX);
-    if (state.resizingCol !== x) {
+    if (state.resizingCol !== viewport.x) {
       return {
-        resizingCol: x,
-        resizedSize: utils.getSizeAfterResize(x, 0)[0],
+        resizingCol: viewport.x,
+        resizedSize: getColSizeAfterResize(sheet, viewport.x),
       };
     }
   } else if (state.resizingCol != null) {
@@ -249,12 +234,12 @@ function getNextStateByMouseMove(
       resizedSize: null,
     };
   }
-  if (cursorOn.rowResize) {
+  if (hit.rowResize) {
     sheet.injection.setCursorType(CURSOR_TYPE.RESIZEY);
-    if (state.resizingRow !== y) {
+    if (state.resizingRow !== viewport.y) {
       return {
-        resizingRow: y,
-        resizedSize: utils.getSizeAfterResize(0, y)[1],
+        resizingRow: viewport.y,
+        resizedSize: getRowSizeAfterResize(sheet, viewport.y),
       };
     }
   } else if (state.resizingRow != null) {
@@ -288,34 +273,22 @@ export const ActionPointerUp = register(
       sheet.setState(state => ({
         tag: clearTag(state.tag, SerieBoxPressed),
       }));
-      const {
-        resizingCol,
-        resizingRow,
-        resizedSize,
-        startIndexs,
-      } = sheet.getState();
+      const { resizingCol, resizingRow, resizedSize } = sheet.getState();
       if (resizedSize != null && (resizingCol != null || resizingRow != null)) {
         const snapshot = sheet.snapshot();
-        const [startX, startY] = startIndexs;
-        const canvasOffset = sheet.utils.distanceToCanvasOrigin(
-          resizingCol ?? startX,
-          resizingRow ?? startY
-        );
-        if (canvasOffset) {
-          if (resizingCol != null) {
-            sheet.updateColSize(resizingCol, resizedSize);
-          }
-          if (resizingRow != null) {
-            sheet.updateRowSize(resizingRow, resizedSize);
-          }
-          sheet.setState({
-            resizedSize: null,
-            resizingCol: null,
-            resizingRow: null,
-          });
-          // Should commit to History
-          return snapshot;
+
+        if (resizingCol) {
+          sheet.updateColSize(resizingCol, resizedSize);
         }
+        if (resizingRow) {
+          sheet.updateRowSize(resizingRow, resizedSize);
+        }
+        sheet.setState({
+          resizedSize: null,
+          resizingCol: null,
+          resizingRow: null,
+        });
+        return snapshot;
       }
     },
   })

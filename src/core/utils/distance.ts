@@ -1,10 +1,10 @@
-import { Viewport } from 'types';
-import Sheet from 'core/Sheet';
+import SheetBasic from 'core/SheetBasic';
 import { getPixelDistanceOfCols, colAdvanceByPixel } from './col';
 import { getPixelDistanceOfRows, rowAdvanceByPixel } from './row';
+import Viewport from 'core/Viewport';
 
 export const distanceOfCellToViewportOrigin = (
-  sheet: Sheet,
+  sheet: SheetBasic,
   cellX: number,
   cellY: number,
   viewport: Viewport,
@@ -42,7 +42,7 @@ export const distanceOfCellToViewportOrigin = (
 };
 
 export const distanceOfCellToCanvasOrigin = (
-  sheet: Sheet,
+  sheet: SheetBasic,
   cellX: number,
   cellY: number,
   cellMustInViewport: boolean = true
@@ -53,7 +53,7 @@ export const distanceOfCellToCanvasOrigin = (
     sheet,
     cellX,
     cellY,
-    state.viewport,
+    state.gridViewport,
     cellMustInViewport
   );
   if (gridOffset) {
@@ -66,12 +66,12 @@ export const distanceOfCellToCanvasOrigin = (
 };
 
 export const mouseCoordsToCellCoords = (
-  sheet: Sheet,
+  sheet: SheetBasic,
   mouseX: number,
   mouseY: number
 ) => {
   const state = sheet.getState();
-  let { x, y } = state.viewport;
+  let { x, y } = state.gridViewport;
   let gridOffsetX = 0;
   let gridOffsetY = 0;
 
@@ -85,14 +85,14 @@ export const mouseCoordsToCellCoords = (
   }
   if (x >= 0) {
     mouseX -= state.cols[-1];
-    const [i, offset] = colAdvanceByPixel(sheet, x, mouseX);
 
+    const [i, offset] = colAdvanceByPixel(sheet.getState(), x, mouseX);
     x = i;
     gridOffsetX = offset;
   }
   if (y >= 0) {
     mouseY -= state.rows[-1];
-    const [i, offset] = rowAdvanceByPixel(sheet, y, mouseY);
+    const [i, offset] = rowAdvanceByPixel(sheet.getState(), y, mouseY);
 
     y = i;
     gridOffsetY = offset;

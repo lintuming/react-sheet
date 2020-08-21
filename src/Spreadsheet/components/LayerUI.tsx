@@ -1,7 +1,7 @@
 import React from 'react';
 import Scrollor from './Scrollor';
 import { sendWheelEvent } from '../utils';
-import { useSheetManger, useSafelyInjection } from '..';
+import { useSpreadSheetStore } from '..';
 import { measureScrollBarInner } from '../maths';
 import {
   ActionPointerDown,
@@ -14,6 +14,9 @@ import {
   PointerDownState,
 } from 'actions/actionMouse';
 import CellTextEditor, { EditorRef } from './CellTextEditor';
+import { CURSOR_TYPE } from 'consts';
+import { Injection } from 'core/types';
+import useRerender from 'hooks/useRerender';
 
 type LayerUIProps = {
   width: number;
@@ -30,26 +33,31 @@ const LayerUI: React.FC<LayerUIProps> = ({
   height,
   ...props
 }) => {
-  console.log('call render leyerUI');
-  const { sheetManager, forceUpdate } = useSheetManger();
-  const injection = useSafelyInjection();
+  const store = useSpreadSheetStore();
+  const manager = store.sheetManager;
+
+  const rerender = useRerender();
+
+  const getScrollOffset = React.useRef<Injection['getScrollOffset'] | null>(
+    null
+  );
   const ref = React.useRef<HTMLDivElement>(null);
 
-  const { scrollHeight, scrollWidth } = measureScrollBarInner(sheetManager);
+  const { scrollHeight, scrollWidth } = measureScrollBarInner(manager);
   const isFocus = React.useRef(false);
   const editorRef = React.useRef<EditorRef>(null);
   React.useEffect(
     function initialize() {
-      sheetManager.inject({
-        setCursorType: cursorType => {
+      manager.inject({
+        setCursorType: (cursorType: CURSOR_TYPE) => {
           if (ref.current) {
             ref.current.style.cursor = cursorType;
           }
         },
       });
-      const dipose = sheetManager.sheet.on(
+      const dipose = manager.sheet.on(
         ['UpdateColSize', 'UpdateRowSize'],
-        forceUpdate
+        rerender
       );
       const inactive = (e: MouseEvent) => {
         if (!ref.current?.contains(e.target as any)) {
@@ -59,7 +67,7 @@ const LayerUI: React.FC<LayerUIProps> = ({
       };
       const handleKeyDown = (e: KeyboardEvent) => {
         if (isFocus.current) {
-          sheetManager.actionsManager.handleKeydown(e);
+          manager.actionsManager.handleKeydown(e);
         }
       };
       window.addEventListener('keydown', handleKeyDown);
@@ -70,35 +78,38 @@ const LayerUI: React.FC<LayerUIProps> = ({
         dipose();
       };
     },
-    [sheetManager.sheet, sheetManager, forceUpdate]
+    [manager.sheet, manager, rerender]
   );
 
   React.useEffect(
     function listenWheelEvent() {
-      if (ref.current) {
-        const handleWheel = (e: WheelEvent) => {
-          e.stopPropagation();
-          e.preventDefault();
-          let isVertical = true;
-          if (e.ctrlKey) {
-            isVertical = false;
-          }
-          const delta = e.deltaY;
-          sendWheelEvent(sheetManager, injection.getScrollOffset(), {
-            delta,
-            isVertical,
-            scrollWidth,
-            scrollHeight,
-          });
-        };
-        const r = ref.current;
-        r.addEventListener('wheel', handleWheel, { passive: false });
-        return () => {
-          r.removeEventListener('wheel', handleWheel);
-        };
+      if (ref.current && getScrollOffset.current) {
+        if (getScrollOffset.current) {
+          const current = getScrollOffset.current;
+          const handleWheel = (e: WheelEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+            let isVertical = true;
+            if (e.ctrlKey) {
+              isVertical = false;
+            }
+            const delta = e.deltaY;
+            sendWheelEvent(manager, current(), {
+              delta,
+              isVertical,
+              scrollWidth,
+              scrollHeight,
+            });
+          };
+          const r = ref.current;
+          r.addEventListener('wheel', handleWheel, { passive: false });
+          return () => {
+            r.removeEventListener('wheel', handleWheel);
+          };
+        }
       }
     },
-    [scrollHeight, scrollWidth, sheetManager, injection]
+    [scrollHeight, scrollWidth, manager, getScrollOffset]
   );
 
   const moveState = React.useRef<PointerMoveState | null>(null);
@@ -109,18 +120,14 @@ const LayerUI: React.FC<LayerUIProps> = ({
     e.persist();
     if (!isFocus.current) return;
     if (e.target === ref.current) {
-      const _moveState = initializeMoveState(
-        sheetManager,
-        e,
-        downState.current
-      );
+      const _moveState = initializeMoveState(manager, e, downState.current);
       moveState.current = _moveState;
-      sheetManager.actionsManager.executeAction(ActionPointerMove, _moveState);
+      manager.actionsManager.executeAction(ActionPointerMove, _moveState);
     }
   };
   const handlePointerUp = (e: ReactPointerEvent) => {
     if (e.target === ref.current) {
-      sheetManager.actionsManager.executeAction(ActionPointerUp, {});
+      manager.actionsManager.executeAction(ActionPointerUp, {});
       downState.current = null;
     }
   };
@@ -133,15 +140,12 @@ const LayerUI: React.FC<LayerUIProps> = ({
       }
 
       const pointerDownState = initPointerdownState(
-        sheetManager,
+        manager,
         moveState.current,
         e
       );
       downState.current = pointerDownState;
-      sheetManager.actionsManager.executeAction(
-        ActionPointerDown,
-        pointerDownState
-      );
+      manager.actionsManager.executeAction(ActionPointerDown, pointerDownState);
     }
   };
   const [showEditor, setShowEditor] = React.useState(false);
@@ -173,7 +177,13 @@ const LayerUI: React.FC<LayerUIProps> = ({
       }}
     >
       <CellTextEditor ref={editorRef} hidden={!showEditor}></CellTextEditor>
-      <Scrollor x={scrollWidth} y={scrollHeight} />
+      <Scrollor
+        setGetScrollOffset={getOffset => {
+          getScrollOffset.current = getOffset;
+        }}
+        x={scrollWidth}
+        y={scrollHeight}
+      />
     </div>
   );
 };

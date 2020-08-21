@@ -97,6 +97,7 @@ class SheetManager extends EventEmmit<
   }
 
   render() {
+    this.injection.renderLayer();
     this.sheet.render();
   }
 

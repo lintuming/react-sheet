@@ -96,9 +96,9 @@ class Sheet extends Renderer {
 
   protected stripSheetState(): SnapshotState {
     const {
-      selectedRect,
-      gridRect,
-      selectedRangeRect,
+      gridViewport,
+      selectedViewport,
+      selectedGroupViewport,
       readOnly,
       tag,
       resizedSize,
@@ -109,9 +109,9 @@ class Sheet extends Renderer {
 
     return {
       ...rest,
-      selectedRect,
-      gridRect,
-      selectedRangeRect,
+      gridViewport,
+      selectedViewport,
+      selectedGroupViewport,
     };
   }
 

@@ -1,6 +1,9 @@
 import { ActionName } from './types';
 import React from 'react';
 import { register, createAction } from './register';
+import { isMergeViewport, isViewportsCoincide } from 'core/utils/viewport';
+import { unmergeByCellCoords, mergeViewport } from 'core/utils/merges';
+import Viewport from 'core/Viewport';
 
 type MergeStatus = 'merged' | 'idle';
 
@@ -13,28 +16,31 @@ const ActionMerge = register(
       const state = sheet.getState();
 
       const [status, setStatus] = React.useState<MergeStatus>(
-        sheet.utils.isSelectedRangeMatchMergesRect() ? 'merged' : 'idle'
+        isMergeViewport(sheet, state.selectedViewport) ? 'merged' : 'idle'
       );
       const [disabled, setDisabled] = React.useState(
-        sheet.utils.isTwoRectSame(state.selectedRangeRect, state.selectedRect)
+        isViewportsCoincide(state.selectedViewport, state.selectedGroupViewport)
       );
       React.useEffect(() => {
         const dipose = sheet.on('UpdateState', operation => {
           if (
             operation.type === 'UpdateState' &&
             (operation.payload.merges ||
-              operation.payload.selectedRangeRect ||
-              operation.payload.selectedRect)
+              operation.payload.selectedGroupViewport ||
+              operation.payload.selectedViewport)
           ) {
             const state = sheet.getState();
-            const isMerged = sheet.utils.isSelectedRangeMatchMergesRect();
+            const isMerged = isMergeViewport(
+              sheet,
+              state.selectedGroupViewport
+            );
             setStatus(isMerged ? 'merged' : 'idle');
             setDisabled(
               isMerged
                 ? false
-                : sheet.utils.isTwoRectSame(
-                    state.selectedRangeRect,
-                    state.selectedRect
+                : isViewportsCoincide(
+                    state.selectedViewport,
+                    state.selectedGroupViewport
                   )
             );
           }
@@ -56,29 +62,30 @@ const ActionMerge = register(
       );
     },
     perform(_, __: {}, sheet) {
-      const utils = sheet.utils;
       const state = sheet.getState();
-      const isMatch = utils.isRectMatchMergesRect(...state.selectedRangeRect);
+      const isMerge = isMergeViewport(sheet, state.selectedGroupViewport);
       const snapshot = sheet.snapshot();
 
-      if (isMatch) {
+      if (isMerge) {
         sheet.setState({
-          merges: utils.mergesAfterUnmergeByGrid(
-            state.selectedRangeRect[0],
-            state.selectedRangeRect[1]
+          merges: unmergeByCellCoords(
+            sheet,
+            state.selectedGroupViewport.x,
+            state.selectedGroupViewport.y
           ),
-          selectedRect: [
-            state.selectedRangeRect[0],
-            state.selectedRangeRect[1],
-            state.selectedRangeRect[0],
-            state.selectedRangeRect[1],
-          ],
+          selectedViewport: new Viewport(
+            state.selectedGroupViewport.x,
+            state.selectedGroupViewport.y,
+            state.selectedGroupViewport.x,
+            state.selectedGroupViewport.y
+          ),
         });
         return snapshot;
       } else {
+
         sheet.setState(state => ({
-          merges: utils.mergesAfterMergeSelectedRange(),
-          selectedRect: [...state.selectedRangeRect],
+          merges: mergeViewport(sheet, state.selectedGroupViewport),
+          selectedViewport: state.selectedGroupViewport.spawn(),
         }));
         return snapshot;
       }

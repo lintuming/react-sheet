@@ -37,10 +37,42 @@ const C = () => {
   return <canvas ref={ref} width={200} height={200}></canvas>;
 };
 
+const ref = () => {};
+const LifeCycle = () => {
+  React.useEffect(() => {
+    console.log('parentEffect');
+  });
+  React.useLayoutEffect(() => {
+    console.log('parentLayout');
+  });
+  React.useImperativeHandle(ref, () => {
+    console.log('impr');
+  });
+  console.log('render Parent');
+  return (
+    <div>
+      <ChildLifeCycle />
+    </div>
+  );
+};
+
+const ChildLifeCycle = () => {
+  React.useEffect(() => {
+    console.log('ChildEffect');
+  });
+  React.useLayoutEffect(() => {
+    console.log('ChildLayout');
+  });
+  React.useImperativeHandle(ref, () => {
+    console.log('child impr');
+  });
+  console.log('render Child');
+  return <div>child</div>;
+};
 export const Default = (props?: Partial<{}>) => (
   <>
     <C />
-
+    <LifeCycle></LifeCycle>
     <S width={1080} height={1080} />
   </>
 );

@@ -1,5 +1,6 @@
 import { ActionName } from './types';
 import { register, createAction } from './register';
+import { getViewportAfterWheel } from 'core/utils/viewport';
 
 export const ActionScroll = register(
   createAction({
@@ -15,14 +16,17 @@ export const ActionScroll = register(
       },
       sheet
     ) {
-      const [i] = sheet.utils.wheelOffsetToGridIndex(
-        vertical ? 'row' : 'col',
-        offset
+      const scrollState = sheet.injection.getScrollOffset();
+      const currentScrollTop = vertical ? offset : scrollState.scrollTop;
+      const currentScrollLeft = vertical ? scrollState.scrollLeft : offset;
+      const { viewport } = getViewportAfterWheel(
+        sheet,
+        currentScrollTop,
+        currentScrollLeft,
+        vertical
       );
-      sheet.setState(state => ({
-        startIndexs: vertical
-          ? [state.startIndexs[0], Math.max(i, 0)]
-          : [Math.max(i, 0), state.startIndexs[1]],
+      sheet.setState(() => ({
+        gridViewport: viewport,
       }));
     },
   })
@@ -44,17 +48,20 @@ export const ActionWheel = register(
       },
       sheet
     ) {
-      const [i, sum] = sheet.utils.wheelOffsetToGridIndex(
-        vertical ? 'row' : 'col',
-        offset,
+      const scrollState = sheet.injection.getScrollOffset();
+      const currentScrollTop = vertical ? offset : scrollState.scrollTop;
+      const currentScrollLeft = vertical ? scrollState.scrollLeft : offset;
+      const { viewport, scrollLeft, scrollTop } = getViewportAfterWheel(
+        sheet,
+        currentScrollTop,
+        currentScrollLeft,
+        vertical,
         Math.sign(delta)
       );
-      sheet.setState(state => ({
-        startIndexs: vertical
-          ? [state.startIndexs[0], Math.max(i, 0)]
-          : [Math.max(i, 0), state.startIndexs[1]],
+      sheet.setState(() => ({
+        gridViewport: viewport,
       }));
-      sheet.injection.scroll(sum, vertical, true);
+      sheet.injection.scroll(vertical ? scrollTop : scrollLeft, vertical, true);
     },
   })
 );

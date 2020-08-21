@@ -1,9 +1,10 @@
 import React from 'react';
-import { useSheetManger } from 'Spreadsheet';
+import { useSpreadSheetStore } from 'Spreadsheet';
 import { ActionMerge } from 'actions';
 
 export function ToolBar() {
-  const { sheetManager } = useSheetManger();
+  const store = useSpreadSheetStore();
+  const sheetManager = store.sheetManager;
   const C = ActionMerge.component!;
   return (
     <div>

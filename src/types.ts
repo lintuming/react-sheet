@@ -1,5 +1,6 @@
 import SheetManager from 'core/SheetManage';
 import { Formats } from 'consts';
+import Viewport from 'core/Viewport';
 
 declare global {
   const __DEV__: boolean;
@@ -59,17 +60,10 @@ export interface SheetData {
   readOnly?: boolean;
 }
 
-export interface Viewport {
-  x: number;
-  y: number;
-  xEnd: number;
-  yEnd: number;
-}
-
 export type SheetInternalState = SheetData & {
   tag: number;
-  viewport: Viewport;
-  selectGroupViewport: Viewport;
+  gridViewport: Viewport;
+  selectedGroupViewport: Viewport;
   selectedViewport: Viewport;
   // selectedRangeRect: [number, number, number, number]; //  [x1,y1,x2,y2]
   // selectedRect: [number, number, number, number];

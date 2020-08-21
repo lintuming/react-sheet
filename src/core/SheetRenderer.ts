@@ -10,7 +10,21 @@ import { Cell, CellStyle, SheetData, SheetInternalState } from 'types';
 import SheetBasic, { SheetOperations } from './SheetBasic';
 import SheetManager from './SheetManage';
 import { hasTag, MainButtonPressed, SerieBoxPressed } from './SheetTags';
-import CellTextEditor from 'Spreadsheet/components/CellTextEditor';
+import {
+  getViewportBoundingRect,
+  isMergeViewport,
+  isViewportsCoincide,
+} from './utils/viewport';
+import {
+  viewportCellIterator,
+  getCell,
+  getViewportRenderCell,
+} from './utils/cell';
+import { isCellInMergeViewport } from './utils/hitTest';
+import { distanceOfCellToCanvasOrigin } from './utils/distance';
+import { viewportRowIterator, getRowSize } from './utils/row';
+import { getColSize, viewportColIterator } from './utils/col';
+import Viewport from './Viewport';
 
 export interface BoxRenderContext {
   readonly canvasOffsetX: number;
@@ -117,18 +131,9 @@ class Renderer extends SheetBasic {
 
   protected renderCells() {
     assertIsDefined(this.renderContext);
-    const { state } = this;
-    const [xStart, yStart] = state.startIndexs;
-    const { viewHeight, viewWidth } = this.utils.gridViewportSize();
-
-    for (let payload of this.utils.createCellsIterator({
-      rect: [xStart, yStart, this.colsLength, this.rowsLength],
-      skipEmpty: true,
-      xOffsetBound: viewWidth,
-      yOffsetBound: viewHeight,
-    })) {
+    for (let payload of viewportCellIterator(this, true)) {
       const { x, y, cell } = payload;
-      if (this.utils.isGridLocateMergeRect(x, y)) {
+      if (isCellInMergeViewport(this, x, y)) {
         continue;
       }
       this.renderBox(this.getBoxRenderContextFromCell(x, y, cell));
@@ -144,13 +149,16 @@ class Renderer extends SheetBasic {
       (state.resizingRow != null || state.resizingCol != null)
     ) {
       ctx.save();
-
       // Const { x, y } = this.sheetManager.utils.getResizeCanvasOffset(this.sheetManager, sheet);
-      const canvasOffset = this.utils.distanceToCanvasOrigin(
-        state.resizingCol ?? state.startIndexs[0],
-        state.resizingRow ?? state.startIndexs[1]
+      const canvasOffset = distanceOfCellToCanvasOrigin(
+        this,
+        state.resizingCol ?? state.gridViewport.x,
+        state.resizingRow ?? state.gridViewport.y
       );
-      const { viewHeight, viewWidth } = this.utils.gridViewportSize();
+      const { width, height } = getViewportBoundingRect(
+        this,
+        state.gridViewport
+      );
 
       assertIsDefined(canvasOffset);
       const [canvasOffsetX, canvasOffsetY] = canvasOffset;
@@ -185,7 +193,7 @@ class Renderer extends SheetBasic {
           ctx.beginPath();
           this.drawLine(
             [offsetX + RESIZER_SIZE / 2, 0],
-            [offsetX + RESIZER_SIZE / 2, viewHeight]
+            [offsetX + RESIZER_SIZE / 2, height]
           );
         }
         if (state.resizingRow != null) {
@@ -193,7 +201,7 @@ class Renderer extends SheetBasic {
 
           this.drawLine(
             [0, offsetY + RESIZER_SIZE / 2],
-            [viewWidth, offsetY + RESIZER_SIZE / 2]
+            [width, offsetY + RESIZER_SIZE / 2]
           );
         }
       }
@@ -215,25 +223,16 @@ class Renderer extends SheetBasic {
 
   protected renderHead() {
     if (this.renderContext) {
-      const { ctx, width, height } = this.renderContext;
+      const { ctx } = this.renderContext;
 
       ctx.save();
       ctx.beginPath();
-      const { state } = this;
-      const [colStartIdx, rowStartIdx] = state.startIndexs;
-      const { rowsLength, colsLength } = this;
-      // Const restore = this.translateToIndex('y');
-
-      for (let row of this.utils.createRowIterator(
-        rowStartIdx,
-        rowsLength,
-        height
-      )) {
-        const cell = this.utils.getCell(-1, row.index);
+      for (let row of viewportRowIterator(this)) {
+        const cell = getCell(this, -1, row.index);
         const ctx: BoxRenderContext = {
           canvasOffsetX: 0,
-          canvasOffsetY: row.offset + this.utils.getRowSize(-1),
-          width: this.utils.getColSize(-1),
+          canvasOffsetY: row.offset + getRowSize(this, -1),
+          width: getColSize(this, -1),
           height: row.size,
           boxStyle: merge(this.styleConfig.cell, cell.style ?? {}),
           text: cell.text,
@@ -241,95 +240,48 @@ class Renderer extends SheetBasic {
         this.renderBox(ctx);
       }
 
-      for (let col of this.utils.createColIterator(
-        colStartIdx,
-        colsLength,
-        width
-      )) {
-        const cell = this.utils.getCell(col.index, -1);
+      for (let col of viewportColIterator(this)) {
+        const cell = getCell(this, col.index, -1);
         const ctx: BoxRenderContext = {
-          canvasOffsetX: col.offset + this.utils.getColSize(-1),
+          canvasOffsetX: col.offset + getColSize(this, -1),
           canvasOffsetY: 0,
           width: col.size,
-          height: this.utils.getRowSize(-1),
+          height: getRowSize(this, -1),
           boxStyle: merge(this.styleConfig.cell, cell.style ?? {}),
           text: cell.text,
         };
         this.renderBox(ctx);
       }
-      // this.utils.forEachCol(
-      //   {
-      //     start: colStartIdx,
-      //     end: colsLength,
-      //     offsetBound: width,
-      //   },
-      //   ({ offset, size }, i) => {
-      //     const cell = this.utils.getCell(i, -1);
-      //     const ctx: BoxRenderContext = {
-      //       canvasOffsetX: offset + this.utils.getColSize(-1),
-      //       canvasOffsetY: 0,
-      //       width: size,
-      //       height: this.utils.getRowSize(-1),
-      //       boxStyle: merge(this.styleConfig.cell, cell.style ?? {}),
-      //       text: cell.text,
-      //     };
-      //     this.renderBox(ctx);
-      //   }
-      // );
       ctx.restore();
     }
   }
 
   protected renderGrid() {
     assertIsDefined(this.renderContext);
-    const { ctx, width, height } = this.renderContext;
+    const { ctx } = this.renderContext;
 
     ctx.save();
     ctx.beginPath();
     const { state } = this;
 
     ctx.translate(this.state.cols[-1], this.state.rows[-1]);
-    const [colStartIdx, rowStartIdx] = state.startIndexs;
-    const { rowsLength, colsLength } = this;
-    const { viewHeight, viewWidth } = this.utils.gridViewportSize();
+    // const [colStartIdx, rowStartIdx] = state.gridViewport;
+    // const { rowsLength, colsLength } = this;
+    const { width, height } = getViewportBoundingRect(this, state.gridViewport);
 
     this.applyBorderStyle(this.styleConfig.grid.border!);
     this.attrs({
       fillStyle: this.styleConfig.cell.fillStyle,
     });
-    ctx.fillRect(0, 0, viewWidth, viewHeight);
+    ctx.fillRect(0, 0, width, height);
 
-    const lastPageStartCol = this.utils.lastStartIndex('col');
-    const lastPageStartRow = this.utils.lastStartIndex('row');
-    for (let row of this.utils.createRowIterator(
-      rowStartIdx,
-      rowsLength,
-      height
-    )) {
-      this.drawLine(
-        [0, row.offset + row.size],
-        [
-          colStartIdx >= lastPageStartCol
-            ? this.utils.distanceOfCols(colStartIdx, this.colsLength)
-            : viewWidth,
-          row.offset + row.size,
-        ]
-      );
+    // const lastPageStartCol = this.utils.lastStartIndex('col');
+    // const lastPageStartRow = this.utils.lastStartIndex('row');
+    for (let row of viewportRowIterator(this)) {
+      this.drawLine([0, row.offset + row.size], [width, row.offset + row.size]);
     }
-    for (let { offset, size } of this.utils.createColIterator(
-      colStartIdx,
-      colsLength,
-      width
-    )) {
-      this.drawLine(
-        [offset + size, 0],
-        [
-          offset + size,
-          rowStartIdx >= lastPageStartRow
-            ? this.utils.distanceOfRows(rowStartIdx, this.rowsLength)
-            : viewHeight,
-        ]
-      );
+    for (let { offset, size } of viewportColIterator(this)) {
+      this.drawLine([offset + size, 0], [offset + size, height]);
     }
     ctx.restore();
   }
@@ -340,32 +292,39 @@ class Renderer extends SheetBasic {
     ctx.save();
     const { state } = this;
 
-    let [xStart, yStart, xEnd, yEnd] = state.selectedRect;
+    // let { x, y, xEnd, yEnd } = state.selectedViewport;
 
-    const rangeStartOffset = this.utils.distanceToCanvasOrigin(xStart, yStart);
-    let width = this.utils.getColSize(xStart),
-      height = this.utils.getRowSize(yStart);
-    if (rangeStartOffset && (xEnd > xStart || yEnd > yStart)) {
-      // selectedCells is merged;
-      const rangeEndOffset = this.utils.distanceToCanvasOrigin(
-        xEnd + 1,
-        yEnd + 1,
-        false
-      );
-      if (rangeEndOffset) {
-        width = rangeEndOffset[0] - rangeStartOffset[0];
-        height = rangeEndOffset[1] - rangeStartOffset[1];
-      }
-    }
-    if (rangeStartOffset) {
-      this.renderBox({
-        canvasOffsetX: rangeStartOffset[0],
-        canvasOffsetY: rangeStartOffset[1],
-        width,
-        height,
-        boxStyle: this.styleConfig.selected,
-      });
-    }
+    // const rangeStartOffset = distanceOfCellToCanvasOrigin(this, x, y);
+    // let width = getColSize(this, x),
+    //   height = getRowSize(this, y);
+
+    const bound = getViewportBoundingRect(this, state.selectedViewport);
+    this.renderBox({
+      ...bound,
+      boxStyle: this.styleConfig.selected,
+    });
+    // if (rangeStartOffset && isMergeViewport(this, state.selectedViewport)) {
+    //   // selectedCells is merged;
+    //   const rangeEndOffset = distanceOfCellToCanvasOrigin(
+    //     this,
+    //     xEnd + 1,
+    //     yEnd + 1,
+    //     false
+    //   );
+    //   if (rangeEndOffset) {
+    //     width = rangeEndOffset[0] - rangeStartOffset[0];
+    //     height = rangeEndOffset[1] - rangeStartOffset[1];
+    //   }
+    // }
+    // if (rangeStartOffset) {
+    //   this.renderBox({
+    //     canvasOffsetX: rangeStartOffset[0],
+    //     canvasOffsetY: rangeStartOffset[1],
+    //     width,
+    //     height,
+    //     boxStyle: this.styleConfig.selected,
+    //   });
+    // }
     this.renderInterleaveSelectRanger();
 
     ctx.restore();
@@ -374,22 +333,19 @@ class Renderer extends SheetBasic {
   protected renderInterleaveSelectRanger() {
     if (this.renderContext) {
       const { state } = this;
-      const [
-        colRangeStart,
-        rowRangeStart,
-        colRangeEnd,
-        rowRangeEnd,
-      ] = this.state.selectedRangeRect;
-      const xStartIndex = Math.min(colRangeStart, colRangeEnd);
-      const yStartIndex = Math.min(rowRangeStart, rowRangeEnd);
-      const xEndIndex = Math.max(colRangeStart, colRangeEnd);
-      const yEndIndex = Math.max(rowRangeStart, rowRangeEnd);
-      const rangeStartOffset = this.utils.distanceToCanvasOrigin(
+      const { x, y, xEnd, yEnd } = this.state.selectedGroupViewport;
+      const xStartIndex = Math.min(x, xEnd);
+      const yStartIndex = Math.min(y, yEnd);
+      const xEndIndex = Math.max(x, xEnd);
+      const yEndIndex = Math.max(y, yEnd);
+      const rangeStartOffset = distanceOfCellToCanvasOrigin(
+        this,
         xStartIndex,
         yStartIndex,
         false
       );
-      const rangeEndOffset = this.utils.distanceToCanvasOrigin(
+      const rangeEndOffset = distanceOfCellToCanvasOrigin(
+        this,
         xEndIndex + 1,
         yEndIndex + 1,
         false
@@ -398,7 +354,10 @@ class Renderer extends SheetBasic {
       if (
         rangeStartOffset &&
         rangeEndOffset &&
-        !this.utils.isTwoRectSame(state.selectedRangeRect, state.selectedRect)
+        !isViewportsCoincide(
+          state.selectedViewport,
+          state.selectedGroupViewport
+        )
       ) {
         this.renderBox({
           canvasOffsetX: rangeStartOffset[0],
@@ -410,22 +369,23 @@ class Renderer extends SheetBasic {
             : this.styleConfig.selectedRange,
         });
       }
-      const draggerGridOffset = this.utils.distanceToCanvasOrigin(
-        Math.max(colRangeStart, colRangeEnd) + 1,
-        Math.max(rowRangeStart, rowRangeEnd) + 1
+      const draggerGridOffset = distanceOfCellToCanvasOrigin(
+        this,
+        Math.max(x, xEnd) + 1,
+        Math.max(y, yEnd) + 1
       );
       if (
         (!mainButtonPressed || hasTag(state.tag, SerieBoxPressed)) &&
         draggerGridOffset
       ) {
-        // const size = DRAGGER_SIZE;
-        // this.renderBox({
-        //   canvasOffsetX: draggerGridOffset[0] - size / 2,
-        //   canvasOffsetY: draggerGridOffset[1] - size / 2,
-        //   width: size,
-        //   height: size,
-        //   boxStyle: this.styleConfig.selectedDragger,
-        // });
+        const size = DRAGGER_SIZE;
+        this.renderBox({
+          canvasOffsetX: draggerGridOffset[0] - size / 2,
+          canvasOffsetY: draggerGridOffset[1] - size / 2,
+          width: size,
+          height: size,
+          boxStyle: this.styleConfig.selectedDragger,
+        });
       }
     }
   }
@@ -441,13 +401,13 @@ class Renderer extends SheetBasic {
     }
   }
   protected getBoxRenderContextFromMerge(mergeIndex: number): BoxRenderContext {
-    const [x1, y1, x2, y2] = this.state.merges[mergeIndex];
-    const cell = this.utils.getCell(x1, y1);
-
+    const mergeViewport = this.state.merges[mergeIndex];
+    const cell = getViewportRenderCell(this, mergeViewport);
+    const bound = getViewportBoundingRect(this, mergeViewport);
     return {
       boxStyle: merge(this.styleConfig.cell, cell.style),
       text: cell.text ?? '',
-      ...this.utils.getBoundingClientRect(x1, y1, x2, y2),
+      ...bound,
     };
   }
   protected applyBorderStyle(border: string) {
@@ -612,7 +572,6 @@ class Renderer extends SheetBasic {
     height: number,
     { verticalAlign, horizontalAlign, color }: CellStyle
   ) {
-    const { ctx } = this.renderContext;
     if (type === 'lineThrough') {
       if (verticalAlign === 'bottom') {
         y -= height / 2;
@@ -775,7 +734,7 @@ class Renderer extends SheetBasic {
     const cellStyle = merge(this.styleConfig.cell, cell.style ?? {});
     const cellText = cell.text ?? '';
     return {
-      ...this.utils.getBoundingClientRect(x, y, x, y),
+      ...getViewportBoundingRect(this, new Viewport(x, y, x, y)),
       boxStyle: cellStyle,
       text: cellText,
     };

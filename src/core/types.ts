@@ -19,6 +19,7 @@ interface Injection {
     domHeight: number;
   };
   setCursorType: (cursorType: CURSOR_TYPE) => void;
+  renderLayer: () => void;
   // Send: any;
 }
 
@@ -28,9 +29,9 @@ interface HistoryStackValue {
 }
 type SnapshotState = Pick<
   SheetInternalState,
-  | 'gridRect'
-  | 'selectedRect'
-  | 'selectedRangeRect'
+  | 'gridViewport'
+  | 'selectedGroupViewport'
+  | 'selectedViewport'
   | 'rows'
   | 'cols'
   | 'matrix'

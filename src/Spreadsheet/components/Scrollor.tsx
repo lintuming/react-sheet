@@ -1,10 +1,13 @@
 import React from 'react';
 import './ScrollBar.css';
-import { useSheetManger, useSafelyInjection } from '..';
+import { useSpreadSheetStore } from '..';
 import { useIsomorphicLayoutEffect } from 'hooks/useIsomorphicLayoutEffect';
 import { ActionScroll } from 'actions';
 import { sendWheelEvent } from '../utils';
 import { SCROLLBAR_SIZE } from 'consts';
+import { getRowSize } from 'core/utils/row';
+import { getColSize } from 'core/utils/col';
+import { Injection } from 'core/types';
 type ScrollBarProps = {
   direction?: 'horizontal' | 'vertical';
   size?: number;
@@ -29,9 +32,9 @@ const ScrollBar = React.forwardRef(
           width: size,
           height: 1,
         };
-
-    const injection = useSafelyInjection();
-    const { domWidth, domHeight } = injection.getCanvasSize();
+    const store = useSpreadSheetStore();
+    const manager = store.sheetManager;
+    const { domWidth, domHeight } = manager.injection.getCanvasSize();
 
     const warpperStyle = isVertical
       ? ({
@@ -85,21 +88,26 @@ const ScrollBar = React.forwardRef(
 const Scrollor: React.FC<{
   x: number;
   y: number;
-}> = ({ y, x }) => {
-  const { sheetManager } = useSheetManger();
+  setGetScrollOffset: (getScrollOffset: Injection['getScrollOffset']) => void;
+}> = ({ y, x, setGetScrollOffset }) => {
+  const store = useSpreadSheetStore();
+  const manager = store.sheetManager;
   // the total height and width
   const xRef = React.useRef<HTMLDivElement>(null);
   const yRef = React.useRef<HTMLDivElement>(null);
 
   const skipScroll = React.useRef(false);
+  const getScrollOfset = React.useCallback(() => {
+    return {
+      scrollTop: yRef.current?.scrollTop ?? 0,
+      scrollLeft: xRef.current?.scrollLeft ?? 0,
+    };
+  }, []);
+  setGetScrollOffset(getScrollOfset);
+
   useIsomorphicLayoutEffect(() => {
-    return sheetManager.inject({
-      getScrollOffset: () => {
-        return {
-          scrollTop: yRef.current?.scrollTop ?? 0,
-          scrollLeft: xRef.current?.scrollLeft ?? 0,
-        };
-      },
+    return manager.inject({
+      getScrollOffset: getScrollOfset,
       scroll: (distance, vertical, skipScrollEvent) => {
         skipScroll.current = !!skipScrollEvent;
         if (!vertical) {
@@ -123,13 +131,13 @@ const Scrollor: React.FC<{
     const target = e.target as HTMLDivElement;
     const vertical = target === yRef.current;
     const offset = vertical ? target.scrollTop : target.scrollLeft;
-    sheetManager.actionsManager.executeAction(ActionScroll, {
+    manager.actionsManager.executeAction(ActionScroll, {
       offset,
       vertical,
     });
   };
-  const offsetTop = sheetManager.sheet.utils.getRowSize(-1);
-  const offsetLeft = sheetManager.sheet.utils.getColSize(-1);
+  const offsetTop = getRowSize(manager.sheet, -1);
+  const offsetLeft = getColSize(manager.sheet, -1);
 
   const handleWheel = React.useCallback(
     (e: WheelEvent) => {
@@ -138,14 +146,14 @@ const Scrollor: React.FC<{
       const target = e.target as HTMLDivElement;
       const isVertical = target === yRef.current;
       const delta = isVertical ? e.deltaY : e.deltaX;
-      sendWheelEvent(sheetManager, target, {
+      sendWheelEvent(manager, target, {
         isVertical,
         delta,
         scrollHeight: y,
         scrollWidth: x,
       });
     },
-    [y, x, sheetManager]
+    [y, x, manager]
   );
 
   useIsomorphicLayoutEffect(() => {

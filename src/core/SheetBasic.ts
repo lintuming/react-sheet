@@ -1,17 +1,13 @@
-import { Cell, SheetData, SheetInternalState, Rect, RowOrCol } from 'types';
+import { Cell, SheetData, SheetInternalState } from 'types';
 
-import { throwError, deleteAt } from 'utils';
-import {
-  DRAGGER_SIZE,
-  DefaultStyleConfig,
-  EmptyCell,
-  RESIZER_SIZE,
-} from 'consts';
+import { DefaultStyleConfig, EmptyCell } from 'consts';
 import SheetManager from './SheetManage';
 import { Injection } from './types';
 import { EventEmmit } from './EventEmmit';
 import { Noop } from './SheetTags';
 import { produce } from 'immer';
+
+import Viewport, { AutoViewport } from './Viewport';
 type SheetEventNames =
   | 'UpdateState'
   | 'UpdateColSize'
@@ -48,18 +44,6 @@ export type SheetOperations =
       }
     >;
 
-const getGridRect = (
-  startPoint: [number, number],
-  row: RowOrCol,
-  cols: RowOrCol,
-  canvasSize: {
-    canvasWidth: number;
-    canvasHeight: number;
-    domWidth: number;
-    domHeight: number;
-  }
-) => {};
-
 class SheetBasic extends EventEmmit<
   SheetEventNames,
   SheetOperations,
@@ -75,16 +59,18 @@ class SheetBasic extends EventEmmit<
   styleConfig: typeof DefaultStyleConfig;
   constructor(data: SheetData, sheetManager: SheetManager) {
     super();
+    this.injection = sheetManager.injection;
+    // const { domWidth, domHeight } = this.injection.getCanvasSize();
     this.state = {
       ...data,
-      gridRect: [0, 0],
-      selectedRect: [0, 0, 0, 0],
-      selectedRangeRect: [0, 0, 3, 4],
+      gridViewport: new AutoViewport(this, { x: 0, y: 0 }),
+      selectedGroupViewport: new Viewport(0, 0, 0, 0),
+      selectedViewport: new Viewport(0, 0, 0, 0),
       tag: Noop,
     };
+
     this.styleConfig = DefaultStyleConfig;
     this.sheetManager = sheetManager;
-    this.injection = sheetManager.injection;
     this.utils = new SheetUtils(this, () => this.state);
   }
   getState(): Readonly<SheetInternalState> {
@@ -168,77 +154,44 @@ class SheetBasic extends EventEmmit<
     } else {
       action = _action;
     }
-    const changes = [];
-    const inver = [];
+
     switch (action.type) {
       case 'UpdateState':
         {
           const payload = action.payload;
-          this.state = produce(
-            this.state,
-            state => {
-              Object.assign(state, payload);
-            },
-            (c, ic) => {
-              changes.push(...c);
-              inver.push(...ic);
-              console.log(c, ic, 'cc');
-            }
-          );
+          this.state = produce(this.state, state => {
+            Object.assign(state, payload);
+          });
         }
         break;
       case 'UpdateCells': {
         const { x, y, value } = action.payload;
-        this.state = produce(
-          this.state,
-          state => {
-            if (!state.matrix[y]) state.matrix[y] = {};
-            if (!value) {
-              delete state.matrix[y][x];
-            } else {
-              state.matrix[y][x] = {
-                ...state.matrix[y][x],
-                ...value,
-              };
-            }
-          },
-          (c, ic) => {
-            changes.push(...c);
-            inver.push(...ic);
-            console.log(c, ic, 'cc');
+        this.state = produce(this.state, state => {
+          if (!state.matrix[y]) state.matrix[y] = {};
+          if (!value) {
+            delete state.matrix[y][x];
+          } else {
+            state.matrix[y][x] = {
+              ...state.matrix[y][x],
+              ...value,
+            };
           }
-        );
+        });
         break;
       }
       case 'UpdateColSize': {
         const { key, value } = action.payload;
-        this.state = produce(
-          this.state,
-          state => {
-            state.cols[key] = value;
-          },
-          (c, ic) => {
-            changes.push(...c);
-            inver.push(...ic);
-            console.log(c, ic, 'cc');
-          }
-        );
+        this.state = produce(this.state, state => {
+          state.cols[key] = value;
+        });
         // this.state.cols[key] = value;
         break;
       }
       case 'UpdateRowSize': {
         const { key, value } = action.payload;
-        this.state = produce(
-          this.state,
-          state => {
-            state.rows[key] = value;
-          },
-          (c, ic) => {
-            changes.push(...c);
-            inver.push(...ic);
-            console.log(c, ic, 'cc');
-          }
-        );
+        this.state = produce(this.state, state => {
+          state.rows[key] = value;
+        });
         // this.state.rows[key] = value;
         break;
       }
@@ -349,49 +302,49 @@ export class SheetUtils {
   //   return [xStart, yStart, xEnd, yEnd] as const;
   // }
 
-  mergesAfterUnmerge(index: number) {
-    const state = this.state;
-    const merges = [...state.merges];
-    merges[index] = merges[merges.length - 1];
-    merges.length -= 1;
-    return merges;
-  }
+  // mergesAfterUnmerge(index: number) {
+  //   const state = this.state;
+  //   const merges = [...state.merges];
+  //   merges[index] = merges[merges.length - 1];
+  //   merges.length -= 1;
+  //   return merges;
+  // }
 
-  mergesAfterUnmergeByGrid(x: number, y: number) {
-    const merge = this.isGridLocateMergeRect(x, y);
-    if (merge) {
-      return this.mergesAfterUnmerge(merge.index);
-    }
-    return this.getState().merges;
-  }
-  mergesAfterMergeRect(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number
-  ): SheetInternalState['merges'] {
-    const merges = this.state.merges;
-    if (merges.length > 0) {
-      for (let i = 0; i < merges.length; i++) {
-        const range = merges[i];
-        const [rangeX, rangeY, rangeXEnd, rangeYEnd] = range;
-        if (
-          x1 <= rangeX &&
-          y1 <= rangeY &&
-          x2 >= rangeXEnd &&
-          y2 >= rangeYEnd
-        ) {
-          deleteAt(merges, i);
-          i--;
-        }
-      }
-    }
-    return [...merges, [x1, y1, x2, y2]];
-  }
-  mergesAfterMergeSelectedRange() {
-    const selectedRangeRect = this.state.selectedRangeRect;
-    return this.mergesAfterMergeRect(...selectedRangeRect);
-  }
+  // mergesAfterUnmergeByGrid(x: number, y: number) {
+  //   const merge = this.isGridLocateMergeRect(x, y);
+  //   if (merge) {
+  //     return this.mergesAfterUnmerge(merge.index);
+  //   }
+  //   return this.getState().merges;
+  // }
+  // mergesAfterMergeRect(
+  //   x1: number,
+  //   y1: number,
+  //   x2: number,
+  //   y2: number
+  // ): SheetInternalState['merges'] {
+  //   const merges = this.state.merges;
+  //   if (merges.length > 0) {
+  //     for (let i = 0; i < merges.length; i++) {
+  //       const range = merges[i];
+  //       const [rangeX, rangeY, rangeXEnd, rangeYEnd] = range;
+  //       if (
+  //         x1 <= rangeX &&
+  //         y1 <= rangeY &&
+  //         x2 >= rangeXEnd &&
+  //         y2 >= rangeYEnd
+  //       ) {
+  //         deleteAt(merges, i);
+  //         i--;
+  //       }
+  //     }
+  //   }
+  //   return [...merges, [x1, y1, x2, y2]];
+  // }
+  // mergesAfterMergeSelectedRange() {
+  //   const selectedRangeRect = this.state.selectedRangeRect;
+  //   return this.mergesAfterMergeRect(...selectedRangeRect);
+  // }
 
   // isTwoRectSame(rect1: Rect, rect2: Rect) {
   //   for (let i = 0; i < 4; i++) {
@@ -429,8 +382,8 @@ export class SheetUtils {
   //     return cells[x] ?? EmptyCell;
   //   }
   //   return EmptyCell;
-  // }  
-  
+  // }
+
   // getIndexCell(x: number, y: number): Cell {
   //   const indexStylConfig = this.styleConfig.indexCell;
   //   if (x === -1 || y === -1) {
@@ -476,37 +429,36 @@ export class SheetUtils {
   //   return this.state.cols[index] ?? this.state.cols.defaultSize;
   // }
 
-
   /**
    *  Status check
    */
-  isGridLocateMergeRect(x: number, y: number) {
-    const merges = this.state.merges;
-    if (merges.length > 0) {
-      for (let i = 0; i < merges.length; i += 1) {
-        const range = merges[i];
-        const [xStart, yStart, xEnd, yEnd] = range;
-        if (x >= xStart && x <= xEnd && y >= yStart && y <= yEnd) {
-          return { rect: range, index: i };
-        }
-      }
-    }
-    return null;
-  }
-  isSelectedRangeMatchMergesRect() {
-    return this.isRectMatchMergesRect(...this.state.selectedRangeRect);
-  }
-  isRectMatchMergesRect(x1: number, y1: number, x2: number, y2: number) {
-    const merges = this.state.merges;
-    [x1, y1, x2, y2] = this.getRectByRects([x1, y1, x2, y2]);
-    for (let merge of merges) {
-      const [mx1, my1, mx2, my2] = merge;
-      if (x1 === mx1 && x2 === mx2 && y1 === my1 && y2 === my2) {
-        return true;
-      }
-    }
-    return false;
-  }
+  // isGridLocateMergeRect(x: number, y: number) {
+  //   const merges = this.state.merges;
+  //   if (merges.length > 0) {
+  //     for (let i = 0; i < merges.length; i += 1) {
+  //       const range = merges[i];
+  //       const [xStart, yStart, xEnd, yEnd] = range;
+  //       if (x >= xStart && x <= xEnd && y >= yStart && y <= yEnd) {
+  //         return { rect: range, index: i };
+  //       }
+  //     }
+  //   }
+  //   return null;
+  // }
+  // isSelectedRangeMatchMergesRect() {
+  //   return this.isRectMatchMergesRect(...this.state.selectedRangeRect);
+  // }
+  // isRectMatchMergesRect(x1: number, y1: number, x2: number, y2: number) {
+  //   const merges = this.state.merges;
+  //   [x1, y1, x2, y2] = this.getRectByRects([x1, y1, x2, y2]);
+  //   for (let merge of merges) {
+  //     const [mx1, my1, mx2, my2] = merge;
+  //     if (x1 === mx1 && x2 === mx2 && y1 === my1 && y2 === my2) {
+  //       return true;
+  //     }
+  //   }
+  //   return false;
+  // }
   // isColSubsetSelectedAll(x: number) {
   //   const { selectedRangeRect } = this.state;
   //   const [_, yStart, __, yEnd] = selectedRangeRect;
@@ -517,37 +469,37 @@ export class SheetUtils {
   //   );
   // }
 
-  isCursorOnSerieBox(offsetX: number, offsetY: number) {
-    const { state } = this;
-    const [
-      rangeXStart,
-      rangeYStart,
-      rangeXEnd,
-      rangeYEnd,
-    ] = state.selectedRangeRect;
-    const x = Math.max(rangeXEnd, rangeXStart);
-    const y = Math.max(rangeYEnd, rangeYStart);
-    const width = this.getColSize(x);
-    const height = this.getRowSize(y);
-    const pos = this.distanceToCanvasOrigin(x, y);
+  // isCursorOnSerieBox(offsetX: number, offsetY: number) {
+  //   const { state } = this;
+  //   const [
+  //     rangeXStart,
+  //     rangeYStart,
+  //     rangeXEnd,
+  //     rangeYEnd,
+  //   ] = state.selectedRangeRect;
+  //   const x = Math.max(rangeXEnd, rangeXStart);
+  //   const y = Math.max(rangeYEnd, rangeYStart);
+  //   const width = this.getColSize(x);
+  //   const height = this.getRowSize(y);
+  //   const pos = this.distanceToCanvasOrigin(x, y);
 
-    if (pos) {
-      const size = DRAGGER_SIZE;
-      const draggerXStart = pos[0] + width - size / 2;
-      const draggerYStart = pos[1] + height - size / 2;
-      const draggerXEnd = draggerXStart + size;
-      const draggerYEnd = draggerYStart + size;
+  //   if (pos) {
+  //     const size = DRAGGER_SIZE;
+  //     const draggerXStart = pos[0] + width - size / 2;
+  //     const draggerYStart = pos[1] + height - size / 2;
+  //     const draggerXEnd = draggerXStart + size;
+  //     const draggerYEnd = draggerYStart + size;
 
-      return (
-        offsetX >= draggerXStart &&
-        offsetX <= draggerXEnd &&
-        offsetY >= draggerYStart &&
-        offsetY <= draggerYEnd
-      );
-    }
+  //     return (
+  //       offsetX >= draggerXStart &&
+  //       offsetX <= draggerXEnd &&
+  //       offsetY >= draggerYStart &&
+  //       offsetY <= draggerYEnd
+  //     );
+  //   }
 
-    return false;
-  }
+  //   return false;
+  // }
   // isRowSubsetSelectedAll(y: number) {
   //   const { selectedRangeRect } = this.state;
   //   const [xStart, _, xEnd] = selectedRangeRect;
@@ -910,11 +862,6 @@ export class SheetUtils {
 
   //   return [x, y, gridOffsetX, gridOffsetY] as const;
   // }
-
-
-
-
-
 
   // getSizeAfterResize(
   //   resizingCol: number,

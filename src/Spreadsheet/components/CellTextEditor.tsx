@@ -1,9 +1,12 @@
 import React from 'react';
-import { useSheetManger, useSafelyInjection } from 'Spreadsheet';
+import { useSpreadSheetStore } from 'Spreadsheet';
 
 import { CellStyle } from 'types';
 import { merge, getBorderWidthFromStyle, parseBorder } from 'utils';
 import './CellTextEditor.css';
+import { getViewportRenderCell } from 'core/utils/cell';
+import { getViewportBoundingRect } from 'core/utils/viewport';
+import useRerender from 'hooks/useRerender';
 
 export type EditorRef = {
   dom: () => HTMLDivElement | null;
@@ -19,10 +22,11 @@ export default React.forwardRef(function CellTextEditor(
   },
   handler: React.Ref<EditorRef>
 ) {
-  const { sheetManager, forceUpdate } = useSheetManger();
+  const store = useSpreadSheetStore();
+  const sheetManager = store.sheetManager;
   const sheet = sheetManager.sheet;
   const ref = React.useRef<HTMLDivElement>(null);
-  const injection = useSafelyInjection();
+  const rerender = useRerender();
 
   React.useImperativeHandle(
     handler,
@@ -30,7 +34,7 @@ export default React.forwardRef(function CellTextEditor(
       dom: () => ref.current,
       updateCell: () => {
         const state = sheet.getState();
-        sheet.updateCell(state.selectedRect[0], state.selectedRect[1], {
+        sheet.updateCell(state.selectedViewport.x, state.selectedViewport.y, {
           text: ref.current?.innerText ?? '',
         });
       },
@@ -71,19 +75,20 @@ export default React.forwardRef(function CellTextEditor(
     sheet.on('UpdateState', event => {
       if (
         event.type === 'UpdateState' &&
-        (event.payload.selectedRect || event.payload.startIndexs)
+        (event.payload.selectedViewport || event.payload.gridViewport)
       ) {
-        const cell = sheet.utils.getCellOfSelectedRect();
+        const state = sheet.getState();
+        const cell = getViewportRenderCell(sheet, state.selectedViewport);
         const current = ref.current;
         if (current) {
-          current.innerText = cell.text;
-          const sr = sheet.getState().selectedRect;
+          current.innerText = cell.text ?? '';
+          const selectedViewport = state.selectedViewport;
           const {
             canvasOffsetX,
             canvasOffsetY,
             width,
             height,
-          } = sheet.utils.getBoundingClientRect(...sr);
+          } = getViewportBoundingRect(sheet, selectedViewport);
           const cellStyle = merge(sheet.styleConfig.cell, cell.style ?? {});
           const {
             borderTop,
@@ -91,7 +96,7 @@ export default React.forwardRef(function CellTextEditor(
             borderLeft,
             borderRight,
           } = getBorderWidthFromStyle(cellStyle);
-          const { domWidth } = injection.getCanvasSize();
+          const { domWidth } = sheetManager.injection.getCanvasSize();
           const maxWidth = domWidth - canvasOffsetX;
           applyStyle(
             current,
@@ -106,10 +111,10 @@ export default React.forwardRef(function CellTextEditor(
             `
           );
         }
-        forceUpdate();
+        rerender();
       }
     });
-  }, [forceUpdate, sheet, injection]);
+  }, [rerender, sheet, sheetManager]);
 
   return (
     <div

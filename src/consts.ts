@@ -208,7 +208,7 @@ for (let i = 0; i < 100000; i += 1) {
 }
 
 const DEFAULT_SHEET_DATA: SheetData = {
-  matrix: true
+  matrix: false
     ? matrix
     : {
         8: {
@@ -276,7 +276,11 @@ const DEFAULT_SHEET_DATA: SheetData = {
     [-1]: 20,
   },
   cols: {
-    defaultSize: 65,
+    defaultSize: 60,
+    1: 150,
+    146: 96,
+    148: 150,
+    149: 150,
     length: 150,
     [-1]: 60,
   },

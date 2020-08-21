@@ -1,4 +1,3 @@
-import { SheetInternalState, Cell, Viewport } from 'types';
 import {
   getRowSize,
   isRowLocateSelectedGroupViewport,
@@ -9,11 +8,12 @@ import {
   isColLocateSelectedGroupViewport,
   isColAllLocateSelectedGroupViewport,
 } from './col';
-import Sheet from 'core/Sheet';
+import SheetBasic from 'core/SheetBasic';
 import { EmptyCell } from 'consts';
 import { throwError } from 'utils';
-
-export const getCell = (sheet: Sheet, x: number, y: number): Cell => {
+import Viewport from 'core/Viewport';
+import { Cell } from 'types';
+export const getCell = (sheet: SheetBasic, x: number, y: number): Cell => {
   const state = sheet.getState();
   if (x < 0 || y < 0) {
     return getIndexCell(sheet, x, y);
@@ -38,7 +38,7 @@ export const stringAt = (index: number | string) => {
   }
   return ans;
 };
-export const getIndexCell = (sheet: Sheet, x: number, y: number) => {
+export const getIndexCell = (sheet: SheetBasic, x: number, y: number) => {
   const indexStylConfig = sheet.styleConfig.indexCell;
   if (x === -1 || y === -1) {
     if (y < 0) {
@@ -76,22 +76,22 @@ export const getIndexCell = (sheet: Sheet, x: number, y: number) => {
 };
 
 export const viewportCellIterator = function*(
-  sheet: Sheet,
+  sheet: SheetBasic,
   skipEmpty: boolean = true
 ) {
   const state = sheet.getState();
-  let { x, y, xEnd, yEnd } = state.viewport;
+  let { x, y, xEnd, yEnd } = state.gridViewport;
   let xOffset = 0;
   let yOffset = 0;
 
   let i = y,
     j = x;
-  for (; i < yEnd; i++) {
+  for (; i <= yEnd; i++) {
     const height = getRowSize(sheet, i);
     xOffset = 0;
     j = x;
-    for (; j < xEnd; j++) {
-      const cell = getCell(sheet, x, y);
+    for (; j <= xEnd; j++) {
+      const cell = getCell(sheet, i, j);
       if (skipEmpty && cell === EmptyCell) {
         continue;
       }
@@ -100,8 +100,8 @@ export const viewportCellIterator = function*(
         cell,
         width,
         height,
-        x,
-        y,
+        x: i,
+        y: j,
         xOffset,
         yOffset,
       };
@@ -112,6 +112,9 @@ export const viewportCellIterator = function*(
   }
 };
 
-export const getViewportRenderCell = (sheet: Sheet, viewport: Viewport) => {
+export const getViewportRenderCell = (
+  sheet: SheetBasic,
+  viewport: Viewport
+) => {
   return getCell(sheet, viewport.x, viewport.y);
 };

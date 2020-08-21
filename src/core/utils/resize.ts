@@ -1,13 +1,13 @@
-import Sheet from 'core/Sheet';
+import SheetBasic from 'core/SheetBasic';
 import { getColSize } from './col';
 import { distanceOfCellToCanvasOrigin } from './distance';
 import { getPixelDistanceOfRows, getRowSize } from './row';
 import { RESIZER_SIZE } from 'consts';
 
 export const getRowSizeAfterResize = (
-  sheet: Sheet,
+  sheet: SheetBasic,
   row: number,
-  mouseY: number
+  mouseY?: number
 ) => {
   const originSize = getRowSize(sheet, row);
 
@@ -28,9 +28,9 @@ export const getRowSizeAfterResize = (
 };
 
 export const getColSizeAfterResize = (
-  sheet: Sheet,
+  sheet: SheetBasic,
   col: number,
-  mouseX: number
+  mouseX?: number
 ) => {
   const originSize = getColSize(sheet, col);
 

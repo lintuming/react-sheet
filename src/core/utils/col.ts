@@ -1,18 +1,17 @@
-import { SheetInternalState } from 'types';
-import Sheet from 'core/Sheet';
-import { distanceOfCellToCanvasOrigin } from './distance';
+import { RowOrCol } from 'types';
+import SheetBasic from 'core/SheetBasic';
 
-export const getColSize = (sheet: Sheet, i: number) => {
+export const getColSize = (sheet: SheetBasic, i: number) => {
   const state = sheet.getState();
   return state.cols[i] ?? state.cols.defaultSize;
 };
 
-export const viewportColIterator = function*(sheet: Sheet) {
+export const viewportColIterator = function*(sheet: SheetBasic) {
   const state = sheet.getState();
-  const { viewport } = state;
+  const { gridViewport } = state;
   let gridOffset = 0;
-  let i = viewport.x;
-  for (; i < viewport.xEnd; i++) {
+  let i = gridViewport.x;
+  for (; i <= gridViewport.xEnd; i++) {
     const size = getColSize(sheet, i);
     const item = {
       size,
@@ -25,13 +24,11 @@ export const viewportColIterator = function*(sheet: Sheet) {
 };
 
 export const colAdvanceByPixel = (
-  sheet: Sheet,
+  state: { cols: RowOrCol },
   colStart: number,
   advance: number
 ) => {
-  let distanceTocol = 0;
   let i = colStart;
-  const state = sheet.getState();
   const keys = Object.keys(state.cols)
     .filter(
       key => key !== '-1' && key !== 'defaultSize' && Number(key) >= colStart
@@ -46,29 +43,31 @@ export const colAdvanceByPixel = (
    */
   for (let key of keys) {
     const keyNum = Number(key);
-    const distance = state.cols.defaultSize * (keyNum - i) + state.cols[key];
+    const distance = state.cols.defaultSize * (keyNum - i);
     if (rest < distance) {
       break;
     }
-    base += distance;
-    i = keyNum + 1;
     rest -= distance;
+    base += distance;
+    const size = state.cols[keyNum];
+    if (rest <= size) {
+      return [keyNum, base];
+    } else {
+      rest -= size;
+      base += size;
+      i = keyNum + 1;
+    }
   }
-  const restIndex = Math.ceil(rest / state.cols.defaultSize);
-  i = i + restIndex;
-  base += restIndex * state.cols.defaultSize;
-  // while (true) {
-  //   const nextDistance = distanceTocol + getColSize(sheet, i);
-  //   if (nextDistance >= advance) {
-  //     break;
-  //   }
-  //   distanceTocol = nextDistance;
-  //   i++;
-  // }
-  return [i, base];
+  const restCount = Math.min(
+    state.cols.length - i - 1,
+    Math.max(0, Math.ceil(rest / state.cols.defaultSize) - 1)
+  );
+  i += restCount;
+  base += restCount * state.cols.defaultSize;
+  return [i, base] as const;
 };
 export const getPixelDistanceOfCols = (
-  sheet: Sheet,
+  sheet: SheetBasic,
   col: number,
   col2: number
 ) => {
@@ -100,22 +99,26 @@ export const getPixelDistanceOfCols = (
   }
   return ans;
 };
-export const isColLocateSelectedGroupViewport = (sheet: Sheet, col: number) => {
+export const isColLocateSelectedGroupViewport = (
+  sheet: SheetBasic,
+  col: number
+) => {
   const state = sheet.getState();
   return (
-    col >= state.selectGroupViewport.x && col <= state.selectGroupViewport.xEnd
+    col >= state.selectedGroupViewport.x &&
+    col <= state.selectedGroupViewport.xEnd
   );
 };
 
 export const isColAllLocateSelectedGroupViewport = (
-  sheet: Sheet,
+  sheet: SheetBasic,
   col: number
 ) => {
   const state = sheet.getState();
-  const { selectGroupViewport } = sheet.getState();
+  const { selectedGroupViewport } = sheet.getState();
   return (
     isColLocateSelectedGroupViewport(sheet, col) &&
-    selectGroupViewport.y === 0 &&
-    selectGroupViewport.yEnd === state.rows.length - 1
+    selectedGroupViewport.y === 0 &&
+    selectedGroupViewport.yEnd === state.rows.length - 1
   );
 };
