@@ -51,22 +51,23 @@ const LifeCycle = () => {
   console.log('render Parent');
   return (
     <div>
-      <ChildLifeCycle />
+      <ChildLifeCycle id={1} />
+      <ChildLifeCycle id={2} />
     </div>
   );
 };
 
-const ChildLifeCycle = () => {
+const ChildLifeCycle = ({ id }: { id: number }) => {
   React.useEffect(() => {
-    console.log('ChildEffect');
+    console.log('ChildEffect', id);
   });
   React.useLayoutEffect(() => {
-    console.log('ChildLayout');
+    console.log('ChildLayout', id);
   });
   React.useImperativeHandle(ref, () => {
-    console.log('child impr');
+    console.log('child impr', id);
   });
-  console.log('render Child');
+  console.log('render Child', id);
   return <div>child</div>;
 };
 export const Default = (props?: Partial<{}>) => (
