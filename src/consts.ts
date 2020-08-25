@@ -196,7 +196,7 @@ export const DEFAULT_CONFIG: SpreadsheetConfig = {
 };
 
 let matrix: { [key: string]: any } = {};
-for (let i = 0; i < 100; i += 1) {
+for (let i = 0; i < 10; i += 1) {
   matrix[i] = {
     0: {
       text: 'A-' + i,

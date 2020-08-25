@@ -83,7 +83,6 @@ export const viewportCellIterator = function*(
   let { x, y, xEnd, yEnd } = state.gridViewport;
   let xOffset = 0;
   let yOffset = 0;
-
   let i = y,
     j = x;
   for (; i <= yEnd; i++) {
@@ -91,7 +90,7 @@ export const viewportCellIterator = function*(
     xOffset = 0;
     j = x;
     for (; j <= xEnd; j++) {
-      const cell = getCell(sheet, i, j);
+      const cell = getCell(sheet, j, i);
       if (skipEmpty && cell === EmptyCell) {
         continue;
       }
@@ -100,8 +99,8 @@ export const viewportCellIterator = function*(
         cell,
         width,
         height,
-        x: i,
-        y: j,
+        x: j,
+        y: i,
         xOffset,
         yOffset,
       };

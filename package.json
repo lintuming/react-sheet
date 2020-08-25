@@ -17,7 +17,8 @@
     "lint": "tsdx lint",
     "prepare": "tsdx build",
     "storybook": "start-storybook -p 6006",
-    "build-storybook": "build-storybook"
+    "build-storybook": "build-storybook",
+    "deploy-storybook": "storybook-to-ghpages"
   },
   "peerDependencies": {
     "react": ">=16"
@@ -44,6 +45,7 @@
     "@storybook/addon-links": "^6.0.3",
     "@storybook/addons": "^6.0.3",
     "@storybook/react": "^6.0.3",
+    "@storybook/storybook-deployer": "^2.8.6",
     "@types/react": "^16.9.46",
     "@types/react-dom": "^16.9.8",
     "babel-loader": "^8.1.0",
