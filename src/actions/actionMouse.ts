@@ -10,10 +10,7 @@ import {
   SerieBoxPressed,
   MainButtonPressed,
 } from 'core/SheetTags';
-import {
-  distanceOfCellToCanvasOrigin,
-  mouseCoordsToCellCoords,
-} from 'core/utils/distance';
+import { mouseCoordsToCellCoords } from 'core/utils/distance';
 import { isCellInMergeViewport, hitSeriebox } from 'core/utils/hitTest';
 import { getColSize } from 'core/utils/col';
 import { getRowSize } from 'core/utils/row';
@@ -130,7 +127,7 @@ function nextStateByPointerDown(
 ): Partial<SheetInternalState> {
   let newSelectedGroupViewport = viewport.spawn();
   let newSelectedViewport = viewport.spawn();
-  const { x, y, xEnd, yEnd } = state.gridViewport;
+  const { x, y } = state.gridViewport;
   if (hit.col) {
     newSelectedGroupViewport.y = 0;
     newSelectedGroupViewport.yEnd = sheet.rowsLength - 1;

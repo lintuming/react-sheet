@@ -1,5 +1,5 @@
 import React from 'react';
-import { SpreadsheetConfig, SpreadsheetProps } from 'types';
+import { SpreadsheetProps } from 'types';
 
 import { dpr, merge, throwError, assertIsDefined } from 'utils';
 import SheetManager, { SheetManagerEventName } from 'core/SheetManage';

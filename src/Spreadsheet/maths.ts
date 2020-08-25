@@ -3,7 +3,6 @@ import { getPixelDistanceOfRows } from 'core/utils/row';
 import { getPixelDistanceOfCols } from 'core/utils/col';
 import { getLastViewport, getViewportBoundingRect } from 'core/utils/viewport';
 import Sheet from 'core/Sheet';
-import { Injection } from 'core/types';
 
 const getExtractSpaceFromLastViewport = (sheet: Sheet) => {
   const lastViewport = getLastViewport(sheet);

@@ -1,79 +1,110 @@
 import React from 'react';
-import S from '../src/index';
+import SpreadSheet from '../src/index';
 
 export default {
   title: 'Welcome',
 };
 
-// By passing optional props to this story, you can control the props of the component when
-// you consume the story in a test.
-
-const C = () => {
-  const ref = React.useRef<HTMLCanvasElement>(null);
-  const draw = () => {
-    if (ref.current) {
-      const ctx = ref.current.getContext('2d');
-      ctx.moveTo(0.5, 10.5);
-      ctx.lineWidth = 1;
-      ctx.lineTo(30.5, 10.5);
-      ctx.strokeStyle = 'red';
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.lineCap = 'square';
-      ctx.lineJoin = 'miter';
-      ctx.lineWidth = 2;
-      // ctx.moveTo(5, 20);
-      ctx.moveTo(30 + 30, 20);
-      ctx.lineTo(30 + 30, 40);
-      // ctx.lineTo(5, 40);
-      ctx.moveTo(5, 40);
-      ctx.lineTo(5, 20);
-      ctx.stroke();
-    }
-  };
-  React.useEffect(() => {
-    draw();
-  }, []);
-  return <canvas ref={ref} width={200} height={200}></canvas>;
-};
-
-const ref = () => {};
-const LifeCycle = () => {
-  React.useEffect(() => {
-    console.log('parentEffect');
-  });
-  React.useLayoutEffect(() => {
-    console.log('parentLayout');
-  });
-  React.useImperativeHandle(ref, () => {
-    console.log('impr');
-  });
-  console.log('render Parent');
+const CanvasTest = () => {
   return (
-    <div>
-      <ChildLifeCycle id={1} />
-      <ChildLifeCycle id={2} />
-    </div>
+    <canvas
+      ref={r => {
+        if (r) {
+          const ctx = r.getContext('2d');
+          //@ts-ignore
+          window.ctx = r.getContext('2d');
+          ctx.lineCap = 'square'
+          function drawLine(
+            points: [number, number][],
+            setLineStyle: () => void = () => {}
+          ) {
+            let [x, y] = points[0];
+            setLineStyle();
+            ctx.moveTo(x, y);
+            for (let i = 1; i < points.length; i++) {
+              [x, y] = points[i];
+              ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+          }
+          let canvasOffsetX = 10,
+            canvasOffsetY = 10,
+            width = 50,
+            height = 30;
+            ctx.setLineDash([3,2])
+          drawLine(
+            [
+              [canvasOffsetX, canvasOffsetY],
+              [canvasOffsetX + width, canvasOffsetY],
+            ],
+          );
+
+          // applyBorderStyle(borderRight);
+          drawLine(
+            [
+              [canvasOffsetX + width, canvasOffsetY],
+              [canvasOffsetX + width, canvasOffsetY + height],
+            ],
+          );
+
+          // applyBorderStyle(borderBottom);
+          drawLine(
+            [
+              [canvasOffsetX + width, canvasOffsetY + height],
+              [canvasOffsetX, canvasOffsetY + height],
+            ],
+          );
+
+          drawLine(
+            [
+              [canvasOffsetX, canvasOffsetY + height],
+              [canvasOffsetX, canvasOffsetY],
+            ],
+          );
+
+           canvasOffsetX = 10,
+          canvasOffsetY = 60,
+          width = 50,
+          height = 30;
+        drawLine(
+          [
+            [canvasOffsetX, canvasOffsetY],
+            [canvasOffsetX + width, canvasOffsetY],
+          ],
+        );
+
+        // applyBorderStyle(borderRight);
+        drawLine(
+          [
+            [canvasOffsetX + width, canvasOffsetY],
+            [canvasOffsetX + width, canvasOffsetY + height],
+          ],
+        );
+
+        // applyBorderStyle(borderBottom);
+        drawLine(
+          [
+            [canvasOffsetX + width, canvasOffsetY + height],
+            [canvasOffsetX, canvasOffsetY + height],
+          ],
+        );
+
+        drawLine(
+          [
+            [canvasOffsetX, canvasOffsetY + height],
+            [canvasOffsetX, canvasOffsetY],
+          ],
+        );
+        }
+      }}
+      width={200}
+      height={200}
+    ></canvas>
   );
 };
 
-const ChildLifeCycle = ({ id }: { id: number }) => {
-  React.useEffect(() => {
-    console.log('ChildEffect', id);
-  });
-  React.useLayoutEffect(() => {
-    console.log('ChildLayout', id);
-  });
-  React.useImperativeHandle(ref, () => {
-    console.log('child impr', id);
-  });
-  console.log('render Child', id);
-  return <div>child</div>;
-};
 export const Default = (props?: Partial<{}>) => (
   <>
-    <C />
-    <LifeCycle></LifeCycle>
-    <S width={1080} height={1080} />
+    <SpreadSheet width={1080} height={1080} />
   </>
 );

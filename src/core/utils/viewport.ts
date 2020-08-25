@@ -153,7 +153,6 @@ export const getLastViewport = (
   }
   while (height > 0) {
     const size = getRowSize(sheet, viewport.y);
-    console.log(height,size, viewport.y, 'last');
     if (height > size) {
       height -= size;
       viewport.y--;
@@ -214,6 +213,5 @@ export const getViewportAfterWheel = (
   viewport.xEnd = Math.min(Math.max(0, viewport.xEnd), lastViewport.xEnd);
   viewport.y = Math.min(Math.max(0, viewport.y), lastViewport.y);
   viewport.yEnd = Math.min(Math.max(0, viewport.yEnd), lastViewport.yEnd);
-  console.log(lastViewport, 'lastViewport', x, y, scrollTop);
   return { viewport, scrollTop: newScrollTop, scrollLeft: newScrollLeft };
 };

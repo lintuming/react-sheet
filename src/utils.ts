@@ -1,9 +1,4 @@
 import { IS_SERVE } from 'consts';
-import { CellStyle } from 'types';
-
-const isNaN = (value: unknown): value is typeof NaN =>
-  // eslint-disable-next-line
-  typeof value === 'number' && value !== value;
 
 export function deleteAt<T>(arr: T[], index: number) {
   arr[index] = arr[arr.length - 1];
@@ -65,13 +60,6 @@ export function merge<T, F>(config1: T, config2: F = {} as any) {
   }
   return merged;
 }
-function throwWhenCall(msg: string, condiction: boolean = true) {
-  return (() => {
-    if (condiction) {
-      throwError(msg);
-    }
-  }) as any;
-}
 
 function throwError(msg: string): never {
   throw Error(msg);
@@ -83,9 +71,6 @@ function invariant(condiction: boolean, msg: string) {
   }
 }
 
-enum ErrorMsgs {
-  Inject_Error_Msg = 'Uninplement yet! this is likely a bug in Spreadsheet',
-}
 const query = () =>
   `screen and (min-resolution: ${Math.floor(window.devicePixelRatio) +
     0.5}dppx)`;
@@ -143,54 +128,15 @@ function deepFreeze<T extends Object>(obj: T) {
   // 冻结自身(no-op if already frozen)
   return Object.freeze(obj);
 }
-
-const hasOwn = Object.prototype.hasOwnProperty;
-
-function is(A: unknown, B: unknown) {
-  if (A === B) {
-    return A !== 0 || B !== 0 || 1 / A === 1 / B; //+0 !== -0
-  }
-  return isNaN(A) && isNaN(B); //NaN
-}
-
-function shallowEqual(objA: unknown, objB: unknown) {
-  if (is(objA, objB)) return true;
-
-  if (
-    typeof objA !== 'object' ||
-    objA === null ||
-    typeof objB !== 'object' ||
-    objB === null
-  ) {
-    return false;
-  }
-
-  const keysA = Object.keys(objA);
-  const keysB = Object.keys(objB);
-
-  if (keysA.length !== keysB.length) return false;
-
-  for (let i = 0; i < keysA.length; i++) {
-    if (!hasOwn.call(objB, keysA[i]) || !is(objA[keysA[i]], objB[keysA[i]])) {
-      return false;
-    }
-  }
-
-  return true;
-}
 export {
-  throwWhenCall,
   scheduleUpdate,
   invariant,
   throwError,
   assertIsDefined,
-  ErrorMsgs,
   assert,
   deepFreeze,
   deepClone,
-  shallowEqual,
   dpr,
-  isNaN,
   border,
   addMatchMediaListener,
 };

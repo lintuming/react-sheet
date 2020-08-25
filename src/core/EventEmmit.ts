@@ -1,4 +1,4 @@
-type Wildcard = '.';
+type Wildcard = '*';
 type EventName<E> = E | Wildcard;
 type EventNames<E> = EventName<E> | EventName<E>[];
 class EventEmmit<E, VALUE, CALLBACK extends (value: VALUE) => void> {
@@ -11,8 +11,8 @@ class EventEmmit<E, VALUE, CALLBACK extends (value: VALUE) => void> {
   on(eventNames: EventNames<E>, listener: CALLBACK) {
     if (!Array.isArray(eventNames)) {
       eventNames = [eventNames];
-    } else if (eventNames.includes('.')) {
-      eventNames = ['.'];
+    } else if (eventNames.includes('*')) {
+      eventNames = ['*'];
     }
     for (const eventName of eventNames) {
       if (!this.eventListeners.has(eventName)) {
@@ -53,8 +53,8 @@ class EventEmmit<E, VALUE, CALLBACK extends (value: VALUE) => void> {
   }
 
   emit(eventName: EventName<E>, value: VALUE) {
-    if (this.eventListeners.has('.')) {
-      const listeners = this.eventListeners.get('.')!;
+    if (this.eventListeners.has('*')) {
+      const listeners = this.eventListeners.get('*')!;
       for (let i = 0; i < listeners.length; i++) {
         listeners[i](value);
       }

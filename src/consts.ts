@@ -97,8 +97,8 @@ const baseTextStyle = {
 
 const DEFAULT_CELL_STYLE: CellStyle = {
   ...baseTextStyle,
+  border: border(1, 'solid', 'transparent'),
   bold: false,
-  border: border(1, 'solid', Colors.gridLineStroke),
   italic: false,
   lineThrough: false,
   toFixed: 0,
@@ -195,76 +195,31 @@ export const DEFAULT_CONFIG: SpreadsheetConfig = {
   showSheetChenger: true,
 };
 
-const matrix: { [key: string]: any } = {};
-for (let i = 0; i < 100000; i += 1) {
+let matrix: { [key: string]: any } = {};
+for (let i = 0; i < 100; i += 1) {
   matrix[i] = {
-    0: { text: 'A-' + i },
-    1: { text: 'B-' + i },
-    2: { text: 'C-' + i },
-    3: { text: 'D-' + i },
+    0: {
+      text: 'A-' + i,
+      style: {},
+    },
+    1: {
+      text: 'B-' + i,
+      style: { fillStyle: 'pink', border: border(1, 'solid', 'red') },
+    },
+    2: { text: 'C-' + i, style: { underline: true } },
+    3: {
+      text: 'D-' + i,
+      style: { lineThrough: true, italic: true, bold: true },
+    },
     4: { text: 'E-' + i },
     5: { text: 'F-' + i },
   };
 }
 
+matrix = __DEV__ ? matrix : {};
+
 const DEFAULT_SHEET_DATA: SheetData = {
-  matrix: false
-    ? matrix
-    : {
-        8: {
-          4: {
-            text: '123\ntest',
-            style: {
-              borderTop: '1px solid red',
-              fontSize: 10,
-              verticalAlign: 'top',
-              underline: true,
-            },
-          },
-        },
-        5: {
-          1: {
-            text: 'test\ntest',
-            style: {
-              border: '1px solid red ',
-              textOverflow: 'wrap',
-              lineThrough: true,
-              fontSize: 15,
-            },
-          },
-          3: {
-            text: 'testtest',
-            style: {
-              textOverflow: 'wrap',
-              verticalAlign: 'top',
-              border: '1px solid red',
-              lineThrough: true,
-              fontSize: 15,
-            },
-          },
-        },
-        6: {
-          3: {
-            text: 'testtest',
-            style: {
-              textOverflow: 'wrap',
-              verticalAlign: 'top',
-              border: '1px solid red',
-              lineThrough: true,
-              fontSize: 15,
-            },
-          },
-          4: {
-            text: 'test/test',
-            style: {
-              border: '1px solid red ',
-              textOverflow: 'wrap',
-              underline: true,
-              fontSize: 15,
-            },
-          },
-        },
-      },
+  matrix: matrix,
   merges: [
     // [4, 4, 6, 6],
     // [1, 1, 4, 2],

@@ -1,6 +1,3 @@
-import { ActionName } from './types';
-import { ActionMerge } from './actionToolbar';
-
 export { ActionScroll, ActionWheel } from './actionScroll';
 export { ActionRedo, ActionUndo } from './actionHistory';
 export {

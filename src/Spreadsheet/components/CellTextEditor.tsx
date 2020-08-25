@@ -2,7 +2,7 @@ import React from 'react';
 import { useSpreadSheetStore } from 'Spreadsheet';
 
 import { CellStyle } from 'types';
-import { merge, getBorderWidthFromStyle, parseBorder } from 'utils';
+import { merge, getBorderWidthFromStyle } from 'utils';
 import './CellTextEditor.css';
 import { getViewportRenderCell } from 'core/utils/cell';
 import { getViewportBoundingRect } from 'core/utils/viewport';

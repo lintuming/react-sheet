@@ -1,4 +1,4 @@
-import { assertIsDefined, deepClone, scheduleUpdate } from 'utils';
+import { assertIsDefined, scheduleUpdate } from 'utils';
 import { SheetData, SheetInternalState } from 'types';
 import SheetManager from './SheetManage';
 import { Renderer } from './SheetRenderer';
@@ -9,8 +9,8 @@ type Update = {
 };
 
 /*
- *        Extends               extends               extends
- * Sheet --------->  Renderer  ---------> SheetUtil  ---------> SheetStateWatcher
+ *        extends               extends               extends
+ * Sheet --------->  Renderer  ---------> SheetBasic  ---------> EventEmmit
  */
 class Sheet extends Renderer {
   readonly history: SheetHistory;
@@ -27,7 +27,7 @@ class Sheet extends Renderer {
       redoStack: [],
     };
     this.updateQueued = [];
-    this.on('.', () => {
+    this.on('*', () => {
       if (this.didScheduleRenderThisTick === true) return;
       this.didScheduleRenderThisTick = true;
       this.scheduleUpdate(() => {
