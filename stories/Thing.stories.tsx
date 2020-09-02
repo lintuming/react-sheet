@@ -1,5 +1,5 @@
 import React from 'react';
-import SpreadSheet from '../dist/react-sheet.esm';
+import SpreadSheet from '../src/index';
 
 export default {
   title: 'Welcome',

@@ -3,7 +3,7 @@ import { CURSOR_TYPE } from 'consts';
 import { ActionFnBind, ActionShape } from 'actions/types';
 
 interface Injection {
-  getCanvas: () => HTMLCanvasElement | null;
+  getCanvas: () => [HTMLCanvasElement | null, HTMLCanvasElement | null];
   getConfig: () => SpreadsheetConfig;
   getScrollOffset: () => ScrollState;
   // ScrollBy: (distance: number,vertical?:boolean) => void;

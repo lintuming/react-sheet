@@ -52,7 +52,7 @@ export type Cells = Sparse<Cell>;
 export type Rect = [number, number, number, number];
 
 export interface SheetData {
-  merges: Viewport[]; // per 4 number consist a merge range [x1,y1,x1end,y1end,x2,y2,x2end,y2end]
+  merges: Viewport[];
   freeze?: string;
   matrix: Sparse<Cells>;
   cols: RowOrCol;

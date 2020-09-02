@@ -46,11 +46,11 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
   );
 
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
-
+  const canvas2Ref = React.useRef<HTMLCanvasElement>(null);
   const renderPhaseInjection = React.useRef({
     getCanvas: () => {
-      if (canvasRef.current) {
-        return canvasRef.current;
+      if (canvasRef.current && canvas2Ref.current) {
+        return [canvasRef.current, canvas2Ref.current] as any;
       }
       throwError('can not get canvas');
     },
@@ -101,22 +101,35 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
           height: height,
         }}
       >
-        {shouldRenderLayer ? (
-          <>
-            <ToolBar></ToolBar>
-            <LayerUI width={width} height={height} />
-          </>
-        ) : null}
-        <canvas
-          ref={canvasRef}
-          width={canvasWidth}
-          height={canvasHeight}
-          style={{
-            width: domWidth,
-            height: domHeight,
-          }}
-        />
-        <div>tests</div>
+        {shouldRenderLayer ? <ToolBar></ToolBar> : null}
+        <div style={{ position: 'relative' }}>
+          <canvas
+            ref={canvasRef}
+            width={canvasWidth}
+            height={canvasHeight}
+            style={{
+              width: domWidth,
+              height: domHeight,
+            }}
+          />
+          <canvas
+            ref={canvas2Ref}
+            width={canvasWidth}
+            height={canvasHeight}
+            style={{
+              width: domWidth,
+              height: domHeight,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+            }}
+          />
+          {shouldRenderLayer ? (
+            <>
+              <LayerUI width={width} height={height}></LayerUI>
+            </>
+          ) : null}
+        </div>
       </div>
     </AppContext.Provider>
   );

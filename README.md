@@ -7,7 +7,7 @@
 - [x] Redo/Undo
 - [x] Cell Resize
 - [x] Select
-- [ ] Freeze cells
+- [ ] Freeze cell
 - [ ] Functions
 - [ ] Toolbar
 - [ ] Filter

@@ -68,21 +68,16 @@ export const FontFamilyList = [
 
 enum Colors {
   defaultFontColor = '#333',
-
   indexLineStroke = '#c0c0c0',
   indexBoxFill = '#f8f9fa',
   indexBoxFocusFill = '#5f6368',
   indexBoxSelectedFill = '#e8eaed',
-
   gridLineStroke = '#e2e2e3',
   gridBoxFill = '#fff',
-
   canvasBoxFill = '#f3f3f3',
-
   selectedLineStroke = '#1a73e8',
   selectedDraggerBoxFill = '#1473e8',
   selectedRangeMaskFill = '#1664d529',
-
   hitResizeBoxFill = '#4d90fe',
 }
 
@@ -196,7 +191,7 @@ export const DEFAULT_CONFIG: SpreadsheetConfig = {
 };
 
 let matrix: { [key: string]: any } = {};
-for (let i = 0; i < 10; i += 1) {
+for (let i = 0; i < 10000; i += 1) {
   matrix[i] = {
     0: {
       text: 'A-' + i,
@@ -226,7 +221,7 @@ const DEFAULT_SHEET_DATA: SheetData = {
     // [0, 11, 8, 11],
   ],
   rows: {
-    length: 100,
+    length: 10000,
     defaultSize: 25,
     [-1]: 20,
   },
@@ -236,7 +231,7 @@ const DEFAULT_SHEET_DATA: SheetData = {
     146: 96,
     148: 150,
     149: 150,
-    length: 150,
+    length: 10000,
     [-1]: 60,
   },
 };

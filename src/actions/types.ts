@@ -13,9 +13,10 @@ export enum ActionName {
   redo = 'redo',
   updateSheet = 'updateSheet',
   merge = 'merge',
+  editCell = 'editCell',
 }
 
-type Snapshot = SnapshotState | void | undefined;
+type ConfirmCommitHostory = void | boolean;
 
 type Third<T extends any[]> = ((...t: T) => void) extends (
   h1: any,
@@ -29,9 +30,11 @@ type ActionFn<T> = (
   sheetManager: SheetManager,
   payload: T,
   sheet: Sheet
-) => Snapshot;
+) => ConfirmCommitHostory;
 
-type ActionFnBind = (...args: Third<Parameters<ActionFn<any>>>) => Snapshot;
+type ActionFnBind = (
+  ...args: Third<Parameters<ActionFn<any>>>
+) => ConfirmCommitHostory;
 
 interface KeyTestFn {
   (event: KeyboardEvent, sheetManager: SheetManager): boolean;

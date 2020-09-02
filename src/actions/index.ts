@@ -6,4 +6,5 @@ export {
   ActionPointerUp,
 } from './actionMouse';
 export { ActionMerge } from './actionToolbar';
+export { ActionEditCell } from './actionCell';
 export { actions } from './register';

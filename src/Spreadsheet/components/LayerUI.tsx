@@ -17,7 +17,7 @@ import CellTextEditor, { EditorRef } from './CellTextEditor';
 import { CURSOR_TYPE } from 'consts';
 import { Injection } from 'core/types';
 import useRerender from 'hooks/useRerender';
-
+import throttle from 'lodash.throttle';
 type LayerUIProps = {
   width: number;
   height: number;
@@ -116,15 +116,17 @@ const LayerUI: React.FC<LayerUIProps> = ({
 
   const downState = React.useRef<PointerDownState | null>(null);
 
-  const handlePointerMove = (e: ReactPointerEvent) => {
-    e.persist();
-    if (!isFocus.current) return;
-    if (e.target === ref.current) {
-      const _moveState = initializeMoveState(manager, e, downState.current);
-      moveState.current = _moveState;
-      manager.actionsManager.executeAction(ActionPointerMove, _moveState);
-    }
-  };
+  const handlePointerMove = React.useCallback(
+    (e: ReactPointerEvent) => {
+      if (!isFocus.current) return;
+      if (e.target === ref.current) {
+        const _moveState = initializeMoveState(manager, e, downState.current);
+        moveState.current = _moveState;
+        manager.actionsManager.executeAction(ActionPointerMove, _moveState);
+      }
+    },
+    [manager]
+  );
   const handlePointerUp = (e: ReactPointerEvent) => {
     if (e.target === ref.current) {
       manager.actionsManager.executeAction(ActionPointerUp, {});
@@ -171,11 +173,15 @@ const LayerUI: React.FC<LayerUIProps> = ({
       onDoubleClick={handleDoubleClick}
       style={{
         position: 'absolute',
+        top: 0,
+        left: 0,
         width,
         height,
+        zIndex: 5,
         ...props.style,
       }}
     >
+      {props.children}
       <CellTextEditor ref={editorRef} hidden={!showEditor}></CellTextEditor>
       <Scrollor
         setGetScrollOffset={getOffset => {

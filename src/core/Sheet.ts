@@ -47,8 +47,8 @@ class Sheet extends Renderer {
 
   undo() {
     if (this.canUndo()) {
+      console.log('canundo');
       const hisotry = this.history.undoStack.pop()!;
-
       this.history.redoStack.push(hisotry);
       this.performSnapshot(hisotry.undo);
     }
@@ -83,12 +83,12 @@ class Sheet extends Renderer {
 
   applyAction(payload: ActionPayload) {
     const { excute } = payload;
-    const snapshot = excute(this);
-
-    if (snapshot) {
-      assertIsDefined(snapshot!);
+    const snapshot = this.snapshot();
+    const commitHistory = excute(this);
+    console.log(commitHistory, 'commit');
+    if (commitHistory) {
       this.history.undoStack.push({
-        undo: snapshot!,
+        undo: snapshot,
         redo: this.snapshot(),
       });
     }

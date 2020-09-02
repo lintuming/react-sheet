@@ -63,8 +63,6 @@ const ActionMerge = register(
     perform(_, __: {}, sheet) {
       const state = sheet.getState();
       const isMerge = isMergeViewport(sheet, state.selectedGroupViewport);
-      const snapshot = sheet.snapshot();
-
       if (isMerge) {
         sheet.setState({
           merges: unmergeByCellCoords(
@@ -79,14 +77,13 @@ const ActionMerge = register(
             state.selectedGroupViewport.y
           ),
         });
-        return snapshot;
       } else {
         sheet.setState(state => ({
           merges: mergeViewport(sheet, state.selectedGroupViewport),
           selectedViewport: state.selectedGroupViewport.spawn(),
         }));
-        return snapshot;
       }
+      return true;
     },
     commitHistory: true,
   })

@@ -272,8 +272,6 @@ export const ActionPointerUp = register(
       }));
       const { resizingCol, resizingRow, resizedSize } = sheet.getState();
       if (resizedSize != null && (resizingCol != null || resizingRow != null)) {
-        const snapshot = sheet.snapshot();
-
         if (resizingCol) {
           sheet.updateColSize(resizingCol, resizedSize);
         }
@@ -285,7 +283,7 @@ export const ActionPointerUp = register(
           resizingCol: null,
           resizingRow: null,
         });
-        return snapshot;
+        return true;
       }
     },
   })

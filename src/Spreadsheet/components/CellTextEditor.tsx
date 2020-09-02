@@ -7,6 +7,7 @@ import './CellTextEditor.css';
 import { getViewportRenderCell } from 'core/utils/cell';
 import { getViewportBoundingRect } from 'core/utils/viewport';
 import useRerender from 'hooks/useRerender';
+import { ActionEditCell } from 'actions';
 
 export type EditorRef = {
   dom: () => HTMLDivElement | null;
@@ -34,12 +35,16 @@ export default React.forwardRef(function CellTextEditor(
       dom: () => ref.current,
       updateCell: () => {
         const state = sheet.getState();
-        sheet.updateCell(state.selectedViewport.x, state.selectedViewport.y, {
-          text: ref.current?.innerText ?? '',
+        sheetManager.actionsManager.executeAction(ActionEditCell, {
+          x: state.selectedViewport.x,
+          y: state.selectedViewport.y,
+          payload: {
+            text: ref.current?.innerText ?? '',
+          },
         });
       },
     }),
-    [sheet]
+    [sheet, sheetManager.actionsManager]
   );
   const applyStyle = <T extends HTMLElement>(
     target: T,

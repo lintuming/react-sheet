@@ -43,22 +43,42 @@ type Attrs = {
   lineWidth?: CanvasRenderingContext2D['lineWidth'];
   textAlign?: CanvasRenderingContext2D['textAlign'];
   strokeStyle?: CanvasRenderingContext2D['strokeStyle'];
+  globalCompositeOperation?: CanvasRenderingContext2D['globalCompositeOperation'];
   font?: CanvasRenderingContext2D['font'];
   textBaseline?: CanvasRenderingContext2D['textBaseline'];
 };
 
 class Renderer extends SheetBasic {
   renderContext: RenderContext | null;
-
+  contextStack: (RenderContext | null)[];
   constructor(data: SheetData, sheetManager: SheetManager) {
     super(data, sheetManager);
     this.renderContext = null;
+    this.contextStack = [];
   }
 
-  protected pushContext() {
-    const canvas = this.injection.getCanvas();
+  protected useContext(index: number = 0, callback?: () => {}) {
+    const canvas = this.injection.getCanvas()[index];
     const { domWidth, domHeight } = this.injection.getCanvasSize();
 
+    if (canvas) {
+      const ctx = canvas.getContext('2d')!;
+      const context = {
+        width: domWidth,
+        height: domHeight,
+        ctx,
+        canvas,
+        box: null,
+      };
+
+      this.renderContext = context;
+      ctx.scale(dpr(), dpr());
+      callback?.();
+    }
+  }
+  protected pushContext(cursor: number = 0) {
+    const canvas = this.injection.getCanvas()[cursor];
+    const { domWidth, domHeight } = this.injection.getCanvasSize();
     if (canvas) {
       const context = {
         width: domWidth,
@@ -67,13 +87,13 @@ class Renderer extends SheetBasic {
         canvas,
         box: null,
       };
-
+      this.contextStack.push(this.renderContext);
       this.renderContext = context;
     }
   }
 
   protected popContext() {
-    this.renderContext = null;
+    this.renderContext = this.contextStack.pop()!;
   }
 
   protected attrs(attrs: Attrs) {
@@ -84,34 +104,26 @@ class Renderer extends SheetBasic {
 
   protected clearAll() {
     if (this.renderContext) {
-      const { ctx, width, height } = this.renderContext;
-
-      ctx.clearRect(0, 0, width, height);
+      const { width, height } = this.renderContext;
+      this.renderContext.ctx.clearRect(0, 0, width, height);
     }
   }
 
-  renderAll() {
-    // this.clearAll();
-    this.paintBackground();
+  render() {
+    this.pushContext();
+    this.clearAll();
     this.renderGrid();
     this.renderCells();
     this.renderMerges();
+    this.popContext();
+
+    this.pushContext(1);
+
+    this.clearAll();
+    this.renderResizer();
     this.renderSelected();
     this.renderHead();
     this.renderIndex();
-    this.renderResizer();
-  }
-  render() {
-    this.pushContext();
-    const { ctx } = this.renderContext!;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.scale(dpr(), dpr());
-    // ctx.translate(0.5, 0.5);
-    this.renderAll();
-
-    ctx.restore();
     this.popContext();
   }
 
@@ -266,11 +278,13 @@ class Renderer extends SheetBasic {
     const { width, height } = getViewportBoundingRect(this, state.gridViewport);
 
     this.applyBorderStyle(this.styleConfig.grid.border!);
-    this.attrs({
-      fillStyle: this.styleConfig.cell.fillStyle,
-    });
-    ctx.fillRect(0, 0, width, height);
-
+    // ctx.save();
+    // this.attrs({
+    //   fillStyle: this.styleConfig.cell.fillStyle,
+    //   globalCompositeOperation:'destination-over'
+    // });
+    // ctx.fillRect(0, 0, width, height);
+    // ctx.restore();
     // const lastPageStartCol = this.utils.lastStartIndex('col');
     // const lastPageStartRow = this.utils.lastStartIndex('row');
     for (let row of viewportRowIterator(this)) {
@@ -461,7 +475,6 @@ class Renderer extends SheetBasic {
 
   protected applyCellStyle() {
     assertIsDefined(this.renderContext);
-
     this.formatBoxText();
     this.drawBoxContent();
     this.drawBoxText();
@@ -686,14 +699,16 @@ class Renderer extends SheetBasic {
 
     ctx.save();
     // this.clipBoxBound();
+
     this.attrs({
       fillStyle: boxStyle.fillStyle,
+      globalCompositeOperation: 'destination-over',
     });
-    const box = getBorderWidthFromStyle(boxStyle);
+    const box = getBorderWidthFromStyle({});
     ctx.fillRect(
       canvasOffsetX + box.borderLeft,
       canvasOffsetY + box.borderRight,
-      width - box.borderLeft - box.borderRight ,
+      width - box.borderLeft - box.borderRight,
       height - box.borderTop - box.borderBottom
     );
     ctx.restore();
