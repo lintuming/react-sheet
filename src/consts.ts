@@ -1,7 +1,6 @@
 import { CellStyle, SheetData, SpreadsheetConfig } from 'types';
-import { border, deepFreeze } from 'utils';
+import { border, deepFreeze } from './utils';
 const IS_SERVE = typeof window === 'undefined';
-
 enum POINTER_BUTTON {
   MAIN = 0,
   WHEEL,
@@ -244,6 +243,7 @@ export {
   RESIZER_SIZE,
   DefaultStyleConfig,
   DEFAULT_SHEET_DATA,
+  DEFAULT_CELL_STYLE,
   EmptyCell,
   Colors,
 };

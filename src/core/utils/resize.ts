@@ -1,7 +1,7 @@
 import SheetBasic from 'core/SheetBasic';
 import { getColSize } from './col';
 import { distanceOfCellToCanvasOrigin } from './distance';
-import { getPixelDistanceOfRows, getRowSize } from './row';
+import {  getRowSize } from './row';
 import { RESIZER_SIZE } from 'consts';
 
 export const getRowSizeAfterResize = (

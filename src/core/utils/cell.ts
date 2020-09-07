@@ -26,7 +26,7 @@ export const getCell = (sheet: SheetBasic, x: number, y: number): Cell => {
 };
 
 export const stringAt = (index: number | string) => {
-  index = Number(index);
+  index = Number(index) + 1;
   let ans = '';
 
   while (index !== 0) {
@@ -52,7 +52,7 @@ export const getIndexCell = (sheet: SheetBasic, x: number, y: number) => {
       }
 
       return {
-        text: __DEV__ ? `${stringAt(x + 1)}(${x})` : stringAt(x + 1),
+        text: __DEV__ ? `${stringAt(x)}(${x})` : stringAt(x),
         style: styles,
       };
     }

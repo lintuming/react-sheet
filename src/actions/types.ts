@@ -1,7 +1,6 @@
 import SheetInstance from 'core/SheetBasic';
 import SheetManager from 'core/SheetManage';
 import Sheet from 'core/Sheet';
-import { SnapshotState } from 'core/types';
 
 export enum ActionName {
   scroll = 'scroll',

@@ -40,7 +40,11 @@ export function getBorderWidthFromStyle(style: {
     borderTop,
   };
 }
-export function merge<T, F>(config1: T, config2: F = {} as any) {
+export function merge<T, F>(
+  config1: T,
+  config2: F = {} as any,
+  depth: number = 1
+) {
   const merged = { ...config1 };
   for (const key of Object.keys(config2)) {
     const value = config2[key];
@@ -51,7 +55,8 @@ export function merge<T, F>(config1: T, config2: F = {} as any) {
         if (Array.isArray(value)) {
           merged[key] = value;
         } else {
-          merged[key] = merge(merged[key], value);
+          merged[key] =
+            depth > 0 ? merge(merged[key], value, depth - 1) : value;
         }
       } else {
         merged[key] = value;
@@ -71,20 +76,6 @@ function invariant(condiction: boolean, msg: string) {
   }
 }
 
-const query = () =>
-  `screen and (min-resolution: ${Math.floor(window.devicePixelRatio) +
-    0.5}dppx)`;
-let matchMedia = window.matchMedia(query());
-const addMatchMediaListener = (callback: () => void) => {
-  const _matchMedia = matchMedia;
-  const wrap = () => {
-    callback();
-    _matchMedia.removeEventListener('change', wrap);
-    matchMedia = window.matchMedia(query());
-    addMatchMediaListener(wrap);
-  };
-  _matchMedia.addEventListener('change', wrap);
-};
 const scheduleUpdate =
   'requestAnimationFrame' in global
     ? requestAnimationFrame
@@ -134,5 +125,4 @@ export {
   deepClone,
   dpr,
   border,
-  addMatchMediaListener,
 };
